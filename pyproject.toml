@@ -7,6 +7,7 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic>=2.0",
     "aiosqlite",
+    "httpx",
 ]
 
 [project.optional-dependencies]

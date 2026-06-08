@@ -1,0 +1,19 @@
+- [x] OpenAIProvider 类实现，通过 httpx 调用 /v1/chat/completions
+- [x] LLMProviderError 异常类定义，覆盖网络/HTTP/JSON/格式四类错误
+- [x] 环境变量读取逻辑：LLM_PROVIDER、LLM_API_KEY、LLM_BASE_URL、LLM_MODEL、LLM_TIMEOUT
+- [x] FallbackProvider 实现：primary 失败时降级到 fallback，logging.warning 记录
+- [x] create_provider() 工厂函数：根据 LLM_PROVIDER 选择 provider，配置缺失时降级
+- [x] GameEngine.__init__ 使用 create_provider() 替代硬编码 MockProvider()
+- [x] pyproject.toml 中 httpx 从 dev 依赖提升为运行时依赖
+- [x] NPCAgent.build_prompt 输出格式强化：few-shot 示例、TRUST delta 范围约束
+- [x] 测试：OpenAIProvider 正常调用（mock httpx）
+- [x] 测试：OpenAIProvider 网络错误/HTTP 错误 → LLMProviderError
+- [x] 测试：FallbackProvider primary 成功 → 返回 primary
+- [x] 测试：FallbackProvider primary 失败 → 降级到 fallback
+- [x] 测试：create_provider 各环境变量组合的正确 provider 选择
+- [x] 测试：GameEngine 无环境变量时行为不变（仍使用 MockProvider）
+- [x] 全部 56 个原有测试 + 新增测试通过
+- [x] 不引入 LangChain、LangGraph、Qdrant、Chroma 等外部框架
+- [x] 不修改 GameEngine 对外接口签名
+- [x] 不修改 NPCAgent 构造签名
+- [x] LLM 不直接修改任务、世界状态、好感度（仅输出建议性指令标签）
