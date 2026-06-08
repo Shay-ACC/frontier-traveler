@@ -25,6 +25,9 @@ from app.systems.world_state import WorldState
 
 
 class GameEngine:
+    QUEST_KEYWORDS = {"失踪", "账本", "矿坑", "秘密", "协议", "毒气", "灭口", "真相", "线索", "调查"}
+    PROMISE_KEYWORDS = {"答应", "保证", "承诺", "发誓", "威胁", "报警", "举报", "帮忙", "帮助"}
+
     def __init__(self):
         self.world_state = WorldState()
         self.quest_manager = QuestManager()
@@ -235,6 +238,7 @@ class GameEngine:
             time_of_day=talk_ctx["time_of_day"],
             relationship=talk_ctx["relationship"],
             memories=talk_ctx["memories"],
+            cross_npc_memories=talk_ctx.get("cross_npc_memories", []),
             quest_states=talk_ctx["quest_states"],
         )
 
@@ -275,7 +279,7 @@ class GameEngine:
         if relationship is None:
             relationship = Relationship(game_id=ws.game_id, npc_id=npc_id)
 
-        memories = await self.memory_manager.recall(db, ws.game_id, npc_id, auto_commit=True)
+        memories, cross_npc_memories = await self.memory_manager.recall_with_context(db, ws.game_id, npc_id, auto_commit=True)
         quest_states = await self.quest_manager.get_all_states(db, ws.game_id)
 
         return {
@@ -284,6 +288,7 @@ class GameEngine:
             "time_of_day": ws.time_of_day,
             "relationship": relationship,
             "memories": memories,
+            "cross_npc_memories": cross_npc_memories,
             "quest_states": quest_states,
         }
 
@@ -302,15 +307,33 @@ class GameEngine:
         )
         await self._try_advance_quests(db, ws, state_changes, npc_id=npc_id)
 
-        importance = self._calculate_importance(npc_response.instructions)
+        importance = self._calculate_importance(message, npc_response.instructions, state_changes)
+
+        location = self.world_state.get_location(ws.current_location)
+        loc_name = location.name if location else ws.current_location
+
+        tags = ["talk"]
+        for rc in state_changes.relationship_changes:
+            sign = "+" if rc.delta > 0 else ""
+            tags.append(f"trust{sign}{rc.delta}")
+        for qu in state_changes.quest_updates:
+            tags.append(f"quest:{qu.quest_id}")
+        if any(kw in message for kw in self.PROMISE_KEYWORDS):
+            tags.append("promise")
+        if any(kw in message for kw in self.QUEST_KEYWORDS):
+            tags.append("quest_keyword")
+        tag_str = "|".join(tags)
+
         memory_content = (
-            f"第{ws.turn_count}轮：玩家说「{message[:50]}」，"
-            f"{npc.name}回应「{npc_response.dialogue[:50]}」"
+            f"[{tag_str}] 第{ws.turn_count}轮@{loc_name}："
+            f"玩家说「{message[:50]}」，{npc.name}回应「{npc_response.dialogue[:50]}」"
         )
-        await self.memory_manager.add_short_term(
+        memory = await self.memory_manager.add_short_term(
             db, ws.game_id, npc_id, memory_content, importance, ws.turn_count,
             auto_commit=False
         )
+        if importance >= MemoryManager.PROMOTION_THRESHOLD:
+            await self.memory_manager.promote_to_long_term(db, memory.id, auto_commit=False)
 
         return PlayerInputResponse(
             npc_response=npc_response.dialogue,
@@ -392,15 +415,21 @@ class GameEngine:
                 await WorldState.save(db, ws, auto_commit=False)
                 state_changes.flag_changes[namespaced_flag] = True
 
-    def _calculate_importance(self, instructions: list[ParsedInstruction]) -> int:
-        has_quest = any(i.type == "QUEST" for i in instructions)
-        has_trust = any(i.type == "TRUST" for i in instructions)
-
-        if has_quest:
-            return 8
-        if has_trust:
-            return 6
-        return 3
+    def _calculate_importance(self, message: str, instructions: list[ParsedInstruction], state_changes: StateChanges) -> int:
+        score = 1
+        if any(kw in message for kw in self.QUEST_KEYWORDS):
+            score += 3
+        if state_changes.quest_updates:
+            score += 3
+        if state_changes.relationship_changes:
+            score += 1
+            for rc in state_changes.relationship_changes:
+                if abs(rc.delta) >= 4:
+                    score += 2
+                    break
+        if any(kw in message for kw in self.PROMISE_KEYWORDS):
+            score += 2
+        return min(score, 10)
 
     def _get_available_actions(self, ws: WorldStateModel) -> list[str]:
         actions = []

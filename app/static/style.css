@@ -311,6 +311,37 @@ header h1 {
     line-height: 1.4;
 }
 
+.memory-type-long {
+    border-left: 3px solid #4caf50;
+}
+
+.memory-type-short {
+    border-left: 3px solid #708090;
+}
+
+.memory-important {
+    background-color: #1a1a3e;
+}
+
+.memory-header {
+    color: #c0c0c0;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.memory-type-long .memory-header {
+    color: #4caf50;
+}
+
+.memory-important .memory-header {
+    color: #f0c040;
+}
+
+.memory-body {
+    color: #a0a0a0;
+    font-size: 11px;
+}
+
 .flag-item {
     font-size: 12px;
     padding: 3px 6px;

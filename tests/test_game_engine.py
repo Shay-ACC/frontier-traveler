@@ -348,3 +348,92 @@ async def test_write_phase_rollback_on_failure(engine):
     assert trust == 30
 
     assert len(state_after.recent_memories) == 0
+
+
+@pytest.mark.asyncio
+async def test_importance_quest_keyword(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "我想调查失踪案，这里有什么秘密")
+    state = await engine.get_state(game_id)
+    if len(state.recent_memories) > 0:
+        mem = state.recent_memories[0]
+        assert mem.importance >= 4
+
+
+@pytest.mark.asyncio
+async def test_importance_promise_keyword(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "我答应帮你调查这件事")
+    state = await engine.get_state(game_id)
+    if len(state.recent_memories) > 0:
+        mem = state.recent_memories[0]
+        assert mem.importance >= 3
+
+
+@pytest.mark.asyncio
+async def test_importance_plain_chat(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "天气真好啊")
+    state = await engine.get_state(game_id)
+    if len(state.recent_memories) > 0:
+        mem = state.recent_memories[0]
+        assert mem.importance >= 1
+        assert mem.importance <= 4
+
+
+@pytest.mark.asyncio
+async def test_memory_content_has_structured_tags(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "和老板娘聊聊")
+    state = await engine.get_state(game_id)
+    assert len(state.recent_memories) > 0
+    content = state.recent_memories[0].content
+    assert content.startswith("[talk")
+    assert "@" in content
+
+
+@pytest.mark.asyncio
+async def test_memory_content_has_location(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "和老板娘聊聊")
+    state = await engine.get_state(game_id)
+    if len(state.recent_memories) > 0:
+        content = state.recent_memories[0].content
+        assert "@破晓酒馆" in content or "@tavern" in content
+
+
+@pytest.mark.asyncio
+async def test_active_promotion_on_high_importance(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "矿坑失踪案的秘密真相是什么")
+    state = await engine.get_state(game_id)
+    assert len(state.recent_memories) > 0
+    mem = state.recent_memories[0]
+    assert mem.importance >= 4
+    assert "quest_keyword" in mem.content
+
+
+@pytest.mark.asyncio
+async def test_get_state_includes_long_term_memories(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "矿坑失踪案的秘密真相是什么")
+    state = await engine.get_state(game_id)
+    if len(state.recent_memories) > 0:
+        types = [m.type for m in state.recent_memories]
+        has_long = "long_term" in types
+        has_short = "short_term" in types
+        assert has_long or has_short

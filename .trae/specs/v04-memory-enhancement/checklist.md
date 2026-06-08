@@ -1,0 +1,17 @@
+- [x] _calculate_importance() 使用累加式评分，base=1，支持任务关键词/承诺/trust 变化/普通对话信号
+- [x] importance 值范围 [1, 10]，PROMOTION_THRESHOLD 保持 7
+- [x] memory_content 包含结构化标签（[类别|标签]）和地点标注（@地点）
+- [x] 新格式向后兼容，现有记忆读取不报错
+- [x] recall_with_context() 总量不超过 RECALL_BUDGET=12
+- [x] 跨 NPC 记忆不超过 3 条
+- [x] 跨 NPC 记忆不包含 NPC secret/backstory
+- [x] NPCAgent prompt 记忆格式包含 [重要]/[普通] 标注
+- [x] NPCAgent prompt 包含"来自其他对话的记忆"段落
+- [x] 高 importance 短期记忆在对话后主动晋升，不依赖 FIFO 淘汰
+- [x] get_state() 返回的记忆包含 long_term 类型
+- [x] Web UI 记忆面板区分长期/短期，显示 importance
+- [x] 不修改 DB schema（无新表、无新列）
+- [x] 不引入外部依赖（无向量库、无 embedding、无 LangChain）
+- [x] 不修改 GameEngine 三阶段架构（读→LLM→写）
+- [x] 全部 83 个现有测试通过
+- [x] 17 个新增测试全部通过（100 total passed）

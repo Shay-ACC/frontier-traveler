@@ -168,3 +168,66 @@ async def test_recall_sorting(db, manager):
     same_importance = [m for m in results if m.importance == 5]
     if len(same_importance) >= 2:
         assert same_importance[0].accessed_count <= same_importance[1].accessed_count
+
+
+OTHER_NPC_ID = "test-npc-002"
+
+
+@pytest.mark.asyncio
+async def test_recall_with_context_returns_two_lists(db, manager):
+    await manager.add_short_term(db, GAME_ID, NPC_ID, "当前NPC记忆", importance=5, turn=1)
+    await manager.add_short_term(db, GAME_ID, OTHER_NPC_ID, "其他NPC记忆", importance=8, turn=1)
+    await manager.promote_to_long_term(db, (await manager.get_recent(db, GAME_ID, OTHER_NPC_ID, limit=1))[0].id)
+
+    current, cross_npc = await manager.recall_with_context(db, GAME_ID, NPC_ID)
+    assert isinstance(current, list)
+    assert isinstance(cross_npc, list)
+    assert len(current) >= 1
+    assert any(m.npc_id == NPC_ID for m in current)
+
+
+@pytest.mark.asyncio
+async def test_recall_with_context_cross_npc_only_long_term(db, manager):
+    await manager.add_short_term(db, GAME_ID, OTHER_NPC_ID, "其他NPC短期", importance=5, turn=1)
+    await manager.add_short_term(db, GAME_ID, OTHER_NPC_ID, "其他NPC长期", importance=9, turn=2)
+    await manager.promote_to_long_term(db, (await manager.get_recent(db, GAME_ID, OTHER_NPC_ID, limit=1))[0].id)
+
+    _, cross_npc = await manager.recall_with_context(db, GAME_ID, NPC_ID)
+    for m in cross_npc:
+        assert m.type == "long_term"
+
+
+@pytest.mark.asyncio
+async def test_recall_with_context_cross_npc_limited_to_three(db, manager):
+    for i in range(5):
+        mem = await manager.add_short_term(db, GAME_ID, OTHER_NPC_ID, f"跨NPC记忆_{i}", importance=9, turn=i + 1)
+        await manager.promote_to_long_term(db, mem.id)
+
+    _, cross_npc = await manager.recall_with_context(db, GAME_ID, NPC_ID)
+    assert len(cross_npc) <= 3
+
+
+@pytest.mark.asyncio
+async def test_recall_with_context_budget(db, manager):
+    for i in range(10):
+        await manager.add_short_term(db, GAME_ID, NPC_ID, f"当前记忆_{i}", importance=5, turn=i + 1)
+
+    for i in range(5):
+        mem = await manager.add_short_term(db, GAME_ID, OTHER_NPC_ID, f"跨NPC记忆_{i}", importance=9, turn=i + 1)
+        await manager.promote_to_long_term(db, mem.id)
+
+    current, cross_npc = await manager.recall_with_context(db, GAME_ID, NPC_ID)
+    total = len(current) + len(cross_npc)
+    assert total <= MemoryManager.RECALL_BUDGET
+
+
+@pytest.mark.asyncio
+async def test_get_recent_includes_long_term(db, manager):
+    await manager.add_short_term(db, GAME_ID, NPC_ID, "短期记忆", importance=5, turn=1)
+    mem = await manager.add_short_term(db, GAME_ID, NPC_ID, "长期记忆", importance=9, turn=2)
+    await manager.promote_to_long_term(db, mem.id)
+
+    recent = await manager.get_recent(db, GAME_ID, NPC_ID, limit=5)
+    types = [m.type for m in recent]
+    assert "long_term" in types
+    assert "short_term" in types

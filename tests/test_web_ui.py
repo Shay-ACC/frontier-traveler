@@ -80,3 +80,23 @@ async def test_game_state_still_works(client):
     assert response.status_code == 200
     data = response.json()
     assert "world_state" in data
+
+
+@pytest.mark.asyncio
+async def test_js_memory_display_format(client):
+    response = await client.get("/static/app.js")
+    assert response.status_code == 200
+    js = response.text
+    assert "memory-type-long" in js
+    assert "memory-type-short" in js
+    assert "memory-important" in js
+
+
+@pytest.mark.asyncio
+async def test_css_memory_styles(client):
+    response = await client.get("/static/style.css")
+    assert response.status_code == 200
+    css = response.text
+    assert ".memory-type-long" in css
+    assert ".memory-type-short" in css
+    assert ".memory-important" in css

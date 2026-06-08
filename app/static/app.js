@@ -221,9 +221,33 @@ function refreshState() {
             if (data.recent_memories && data.recent_memories.length > 0) {
                 memoriesEl.innerHTML = "";
                 data.recent_memories.forEach(function (m) {
+                    if (typeof m === "string") {
+                        var item = document.createElement("div");
+                        item.className = "memory-item";
+                        item.textContent = m;
+                        memoriesEl.appendChild(item);
+                        return;
+                    }
+                    var isLong = m.type === "long_term";
+                    var isImportant = m.importance >= 7;
+                    var npcName = NPC_NAME_MAP[m.npc_id] || m.npc_id || "";
+
                     var item = document.createElement("div");
-                    item.className = "memory-item";
-                    item.textContent = typeof m === "string" ? m : JSON.stringify(m);
+                    item.className = "memory-item" + (isLong ? " memory-type-long" : " memory-type-short") + (isImportant ? " memory-important" : "");
+
+                    var header = document.createElement("div");
+                    header.className = "memory-header";
+                    var typeLabel = isLong ? "长期" : "短期";
+                    var star = isImportant ? "★" : "";
+                    header.textContent = "[" + typeLabel + star + (m.importance != null ? m.importance : "") + "] 第" + (m.turn != null ? m.turn : "?") + "轮" + (npcName ? " - " + npcName : "");
+
+                    var body = document.createElement("div");
+                    body.className = "memory-body";
+                    var content = m.content || "";
+                    body.textContent = content.length > 80 ? content.substring(0, 80) + "..." : content;
+
+                    item.appendChild(header);
+                    item.appendChild(body);
                     memoriesEl.appendChild(item);
                 });
             } else {
