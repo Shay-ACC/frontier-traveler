@@ -73,6 +73,11 @@ frontier_traveler/
 │   │   ├── quest.py              # 任务状态机 + 条件检查
 │   │   ├── relationship.py       # 信任/好感 + 安全边界
 │   │   └── world_state.py        # 世界状态持久化
+│   ├── static/
+│   │   ├── app.js                # 前端交互逻辑
+│   │   └── style.css             # 深色主题样式
+│   ├── templates/
+│   │   └── index.html            # Web UI 页面
 │   ├── cli.py                    # 命令行交互界面
 │   ├── database.py               # 数据库连接 + 初始化
 │   └── main.py                   # FastAPI 应用入口
@@ -94,6 +99,25 @@ frontier_traveler/
 ```bash
 pip install -e ".[dev]"
 ```
+
+## 启动 Web UI
+
+```bash
+uvicorn app.main:app --reload
+```
+
+浏览器访问 `http://127.0.0.1:8000` 即可开始游戏。
+
+页面布局：
+- **左侧**：游戏状态（地点、回合、NPC 关系、任务进度）
+- **中间**：对话记录和输入框
+- **右侧**：调试信息（记忆、世界标记）
+
+操作方式：
+1. 点击「开始游戏」按钮
+2. 在输入框中输入自然语言（如 `和老板娘聊聊`、`前往镇政厅`）
+3. 按 Enter 或点击「发送」
+4. 点击「刷新状态」查看最新游戏数据
 
 ## 启动 API 服务
 
@@ -367,7 +391,7 @@ python -m pytest tests/test_game_engine.py::test_llm_called_without_open_write_t
 
 - **默认 MockProvider**：NPC 回复基于预设模板，启用真实 LLM 需配置环境变量
 - **意图识别基于关键词**：通过正则匹配判断移动/对话/探索，不支持复杂自然语言理解
-- **无 Web UI**：仅提供 REST API 和命令行两种交互方式
+- **Web UI 为极简演示版**：三栏纯 HTML/CSS/JS，无前端框架，适合 MVP 演示
 - **无多存档**：同一进程可创建多个 game，但无存档导入/导出
 - **无战斗系统**：纯对话 + 探索驱动的任务推进
 - **地点连通性简单**：线性三地点（酒馆 ↔ 镇政厅 ↔ 矿坑）
@@ -381,9 +405,9 @@ python -m pytest tests/test_game_engine.py::test_llm_called_without_open_write_t
 - [x] **LLM fallback 到 MockProvider** — 调用失败时自动降级，logging.warning 记录
 - [x] **Prompt 输出格式强化** — few-shot 示例、TRUST delta 范围约束、分隔规则明确化
 - [x] **事务安全** — LLM 网络调用不在 SQLite 写事务内，三阶段读写分离
+- [x] **极简 Web UI** — 纯 HTML/CSS/JS 三栏布局，深色主题，浏览器直接游玩
 
 ### 计划中
 
 - [ ] **更稳健的 Prompt 输出解析** — 增强对 LLM 输出格式不一致的容错能力
-- [ ] **简单 Web UI** — 浏览器端的对话式交互界面
 - [ ] **长期记忆检索增强** — 基于 embedding 的语义检索，让 NPC 能引用更久远的对话内容

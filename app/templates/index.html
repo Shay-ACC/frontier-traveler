@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>边境小镇：记忆旅人</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>边境小镇：记忆旅人</h1>
+    </header>
+    <main class="container">
+        <aside class="panel panel-left" id="status-panel">
+            <h2>状态</h2>
+            <div class="status-item">
+                <span class="label">游戏 ID：</span>
+                <span id="game-id">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">当前地点：</span>
+                <span id="current-location">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">回合：</span>
+                <span id="turn-count">-</span>
+            </div>
+            <h3>人物关系</h3>
+            <div id="relationships">
+                <p class="empty-hint">暂无数据</p>
+            </div>
+            <h3>任务状态</h3>
+            <div id="quest-states">
+                <p class="empty-hint">暂无数据</p>
+            </div>
+        </aside>
+        <section class="panel panel-center">
+            <div id="dialog-log"></div>
+            <div id="error-display"></div>
+            <div id="input-area">
+                <button id="btn-start">开始游戏</button>
+                <div id="input-row" class="hidden">
+                    <input type="text" id="input-text" placeholder="输入你的行动..." autocomplete="off">
+                    <button id="btn-send">发送</button>
+                    <button id="btn-refresh">刷新状态</button>
+                </div>
+            </div>
+        </section>
+        <aside class="panel panel-right" id="debug-panel">
+            <h2>调试</h2>
+            <h3>记忆</h3>
+            <div id="memories">
+                <p class="empty-hint">暂无数据</p>
+            </div>
+            <h3>世界标记</h3>
+            <div id="flags">
+                <p class="empty-hint">暂无数据</p>
+            </div>
+        </aside>
+    </main>
+    <script src="/static/app.js"></script>
+</body>
+</html>

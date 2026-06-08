@@ -1,0 +1,371 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background-color: #16213e;
+    text-align: center;
+    padding: 16px 0;
+    border-bottom: 2px solid #0f3460;
+}
+
+header h1 {
+    color: #f0c040;
+    font-size: 24px;
+    letter-spacing: 4px;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: 250px 1fr 250px;
+    gap: 12px;
+    padding: 12px;
+    flex: 1;
+    min-height: 0;
+}
+
+.panel {
+    background-color: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel h2 {
+    color: #f0c040;
+    font-size: 18px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #0f3460;
+    padding-bottom: 8px;
+}
+
+.panel h3 {
+    color: #c0c0c0;
+    font-size: 14px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.status-item {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.status-item .label {
+    color: #a0a0a0;
+}
+
+#game-id,
+#current-location,
+#turn-count {
+    color: #e0e0e0;
+}
+
+.empty-hint {
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+}
+
+.panel-center {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#dialog-log {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: calc(100vh - 200px);
+    flex: 1;
+    gap: 8px;
+    padding: 8px;
+}
+
+#dialog-log::-webkit-scrollbar {
+    width: 6px;
+}
+
+#dialog-log::-webkit-scrollbar-thumb {
+    background: #0f3460;
+    border-radius: 3px;
+}
+
+#dialog-log::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.msg-player {
+    background-color: #0f3460;
+    color: #e0e0e0;
+    margin-left: auto;
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px 12px 4px 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.msg-npc {
+    background-color: #1a1a40;
+    color: #e0e0e0;
+    margin-right: auto;
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px 12px 12px 4px;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.msg-npc .npc-tag {
+    display: inline-block;
+    background-color: #0f3460;
+    color: #f0c040;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+.msg-system {
+    background-color: #2d4a22;
+    color: #c0e0c0;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 90%;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.msg-error {
+    background-color: #5c1a1a;
+    color: #ff6b6b;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 90%;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+    word-break: break-word;
+}
+
+#error-display {
+    background-color: #5c1a1a;
+    color: #ff6b6b;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: none;
+    margin-top: 8px;
+}
+
+#input-area {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #0f3460;
+}
+
+#btn-start {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background-color: #0f3460;
+    color: #f0c040;
+    font-size: 18px;
+    border: 2px solid #f0c040;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#btn-start:hover {
+    background-color: #e94560;
+    color: #fff;
+    border-color: #e94560;
+}
+
+#input-row {
+    display: flex;
+    gap: 8px;
+}
+
+#input-row.hidden {
+    display: none;
+}
+
+#input-text {
+    flex: 1;
+    background-color: #0f3460;
+    color: #ffffff;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+}
+
+#input-text::placeholder {
+    color: #708090;
+}
+
+#input-text:focus {
+    border-color: #f0c040;
+}
+
+#btn-send,
+#btn-refresh {
+    padding: 10px 18px;
+    background-color: #0f3460;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    white-space: nowrap;
+}
+
+#btn-send:hover,
+#btn-refresh:hover {
+    background-color: #e94560;
+}
+
+#btn-send:disabled,
+#btn-refresh:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.relationship-item {
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+.relationship-item .name {
+    color: #f0c040;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.trust-bar-container {
+    background-color: #0a0a1e;
+    border-radius: 4px;
+    height: 8px;
+    overflow: hidden;
+    margin-top: 2px;
+}
+
+.trust-bar {
+    background-color: #4caf50;
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+.quest-item {
+    margin-bottom: 8px;
+    font-size: 13px;
+    padding: 6px 8px;
+    background-color: #0a0a1e;
+    border-radius: 4px;
+}
+
+.quest-item .quest-id {
+    color: #f0c040;
+}
+
+.quest-item .quest-stage {
+    color: #a0a0a0;
+    margin-left: 6px;
+}
+
+.memory-item {
+    font-size: 12px;
+    color: #a0a0a0;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    background-color: #0a0a1e;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+
+.flag-item {
+    font-size: 12px;
+    padding: 3px 6px;
+    margin-bottom: 3px;
+    background-color: #0a0a1e;
+    border-radius: 4px;
+}
+
+.flag-key {
+    color: #f0c040;
+}
+
+.flag-value {
+    color: #a0a0a0;
+}
+
+#memories,
+#flags {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+#memories::-webkit-scrollbar,
+#flags::-webkit-scrollbar,
+#relationships::-webkit-scrollbar,
+#quest-states::-webkit-scrollbar {
+    width: 6px;
+}
+
+#memories::-webkit-scrollbar-thumb,
+#flags::-webkit-scrollbar-thumb,
+#relationships::-webkit-scrollbar-thumb,
+#quest-states::-webkit-scrollbar-thumb {
+    background: #0f3460;
+    border-radius: 3px;
+}
+
+#relationships,
+#quest-states {
+    overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+
+    #dialog-log {
+        max-height: 50vh;
+    }
+
+    .panel-left,
+    .panel-right {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+}
