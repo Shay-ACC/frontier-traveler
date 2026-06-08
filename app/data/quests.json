@@ -1,0 +1,80 @@
+[
+  {
+    "id": "missing_case",
+    "title": "边境小镇失踪案",
+    "description": "边境小镇最近发生了多起神秘失踪事件，作为路过的旅行者，你决定调查真相。",
+    "type": "main",
+    "initial_stage": "not_started",
+    "stages": [
+      {
+        "id": "not_started",
+        "description": "尚未开始调查失踪案",
+        "completion_conditions": {"flag": "heard_about_missing", "value": true},
+        "next_stage": "heard_rumor"
+      },
+      {
+        "id": "heard_rumor",
+        "description": "你听说了失踪案的传闻，需要前往矿坑调查",
+        "completion_conditions": {"location": "abandoned_mine", "min_turn": 3},
+        "next_stage": "found_clue"
+      },
+      {
+        "id": "found_clue",
+        "description": "你在矿坑发现了线索，需要质问镇长",
+        "completion_conditions": {"npc": "mayor", "max_trust": 60},
+        "next_stage": "confronted_mayor"
+      },
+      {
+        "id": "confronted_mayor",
+        "description": "你已经质问了镇长，需要找到矿工托马斯证实一切",
+        "completion_conditions": {"npc": "miner", "flag": "found_clue"},
+        "next_stage": "resolved"
+      },
+      {
+        "id": "resolved",
+        "description": "真相大白！失踪案的幕后黑手已被揭露。",
+        "completion_conditions": {},
+        "next_stage": null
+      }
+    ]
+  },
+  {
+    "id": "lost_ledger",
+    "title": "遗失的账本",
+    "description": "酒馆老板娘艾琳娜丢失了一本重要的账本，她怀疑是被人偷走的。",
+    "type": "side",
+    "initial_stage": "not_started",
+    "stages": [
+      {
+        "id": "not_started",
+        "description": "尚未开始寻找账本",
+        "completion_conditions": {"npc": "innkeeper", "min_trust": 40},
+        "next_stage": "accepted"
+      },
+      {
+        "id": "accepted",
+        "description": "你答应了帮艾琳娜找账本，需要去镇政厅调查",
+        "completion_conditions": {"location": "town_hall", "npc": "mayor"},
+        "next_stage": "searching"
+      },
+      {
+        "id": "searching",
+        "description": "你在镇政厅发现了线索，账本可能藏在某个地方",
+        "completion_conditions": {"flag": "found_ledger_location", "value": true},
+        "next_stage": "found_ledger"
+      },
+      {
+        "id": "found_ledger",
+        "description": "你找到了账本！把它还给艾琳娜吧。",
+        "completion_conditions": {"npc": "innkeeper"},
+        "next_stage": "resolved"
+      },
+      {
+        "id": "resolved",
+        "description": "账本已归还，艾琳娜对你感激不尽。",
+        "completion_conditions": {},
+        "next_stage": null
+      }
+    ]
+  }
+]

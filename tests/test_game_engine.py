@@ -1,0 +1,253 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+from unittest.mock import patch
+
+import aiosqlite
+import pytest
+import pytest_asyncio
+
+from app.engine.game_engine import GameEngine
+
+SCHEMA_PATH = Path(__file__).resolve().parent.parent / "db" / "schema.sql"
+
+MOCK_LOCATIONS = [
+    {
+        "id": "tavern",
+        "name": "破晓酒馆",
+        "description": "一间昏暗但温馨的小酒馆",
+        "connections": ["town_hall"],
+        "available_npcs": ["innkeeper"],
+    },
+    {
+        "id": "town_hall",
+        "name": "镇政厅",
+        "description": "一座两层的石砌建筑",
+        "connections": ["tavern", "abandoned_mine"],
+        "available_npcs": ["mayor"],
+    },
+    {
+        "id": "abandoned_mine",
+        "name": "废弃矿坑",
+        "description": "矿坑入口被锈迹斑斑的铁栅栏半遮着",
+        "connections": ["town_hall"],
+        "available_npcs": ["miner"],
+    },
+]
+
+MOCK_NPCS = [
+    {
+        "id": "innkeeper",
+        "name": "艾琳娜",
+        "role": "酒馆老板娘",
+        "personality": "精明、谨慎、善于察言观色。",
+        "backstory": "艾琳娜在边境小镇经营破晓酒馆已有十年。",
+        "default_location": "tavern",
+        "dialogue_style": "说话简洁有力，偶尔带点讽刺。",
+        "secrets": ["她知道矿坑失踪案与镇长有关"],
+    },
+    {
+        "id": "mayor",
+        "name": "赫尔曼",
+        "role": "镇长",
+        "personality": "表面和善、内心深沉。",
+        "backstory": "赫尔曼担任边境小镇镇长已有十五年。",
+        "default_location": "town_hall",
+        "dialogue_style": "说话冠冕堂皇。",
+        "secrets": ["他与矿业公司签了秘密协议"],
+    },
+    {
+        "id": "miner",
+        "name": "托马斯",
+        "role": "矿工",
+        "personality": "神经质、恐惧。",
+        "backstory": "托马斯是矿坑失踪案的唯一幸存者。",
+        "default_location": "abandoned_mine",
+        "dialogue_style": "说话断断续续。",
+        "secrets": ["他亲眼目睹了矿坑中发生的一切"],
+    },
+]
+
+
+@pytest_asyncio.fixture
+async def db():
+    conn = await aiosqlite.connect(":memory:")
+    conn.row_factory = aiosqlite.Row
+    await conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    await conn.commit()
+    yield conn
+    await conn.close()
+
+
+@pytest_asyncio.fixture
+async def engine(db):
+    @asynccontextmanager
+    async def _mock_get_db():
+        yield db
+
+    with (
+        patch("app.systems.world_state.load_json_data", return_value=MOCK_LOCATIONS),
+        patch("app.agents.npc_agent.load_json_data", return_value=MOCK_NPCS),
+        patch("app.systems.relationship.load_json_data", return_value=MOCK_NPCS),
+        patch("app.engine.game_engine.get_db", _mock_get_db),
+    ):
+        yield GameEngine()
+
+
+@pytest.mark.asyncio
+async def test_start_game(engine):
+    response = await engine.start_game("测试玩家")
+
+    assert response.game_id
+    assert len(response.game_id) == 36
+    assert "边境小镇" in response.opening_narrative
+    assert response.current_location.id == "tavern"
+    assert len(response.available_npcs) == 1
+    assert response.available_npcs[0].id == "innkeeper"
+
+
+@pytest.mark.asyncio
+async def test_process_input_talk(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine.process_input(game_id, "和老板娘聊聊")
+
+    assert response.npc_response
+    assert response.npc_id == "innkeeper"
+    assert len(response.available_actions) > 0
+
+
+@pytest.mark.asyncio
+async def test_process_input_move(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine.process_input(game_id, "前往镇政厅")
+
+    assert "镇政厅" in response.narration
+    assert response.state_changes.location_changed is True
+    assert response.state_changes.new_location == "town_hall"
+    assert response.npc_id is None
+    assert response.npc_response == ""
+
+
+@pytest.mark.asyncio
+async def test_get_state(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    state = await engine.get_state(game_id)
+
+    assert state is not None
+    assert state.game_id == game_id
+    assert state.world_state.current_location == "tavern"
+    assert len(state.relationships) == 3
+    assert len(state.quest_states) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_state_not_found(engine):
+    state = await engine.get_state("nonexistent-id")
+    assert state is None
+
+
+@pytest.mark.asyncio
+async def test_process_input_not_found(engine):
+    response = await engine.process_input("nonexistent-id", "你好")
+    assert response.npc_response == "游戏会话不存在。"
+
+
+@pytest.mark.asyncio
+async def test_full_flow(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    talk_response = await engine.process_input(game_id, "和老板娘聊聊")
+    assert talk_response.npc_response
+    assert talk_response.npc_id == "innkeeper"
+    assert len(talk_response.state_changes.relationship_changes) > 0
+
+    move_response = await engine.process_input(game_id, "前往镇政厅")
+    assert "镇政厅" in move_response.narration
+    assert move_response.state_changes.location_changed is True
+
+    state = await engine.get_state(game_id)
+    assert state.world_state.current_location == "town_hall"
+    assert state.world_state.turn_count >= 2
+    assert len(state.relationships) == 3
+    assert len(state.quest_states) == 2
+
+
+@pytest.mark.asyncio
+async def test_move_invalid_location(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine.process_input(game_id, "前往废弃矿坑")
+
+    assert "无法" in response.narration
+    assert response.state_changes.location_changed is False
+
+
+@pytest.mark.asyncio
+async def test_talk_npc_not_present(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine.process_input(game_id, "和镇长交谈")
+
+    assert "不在这里" in response.npc_response
+    assert response.npc_id is None
+
+
+@pytest.mark.asyncio
+async def test_generic_input_default_talk(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine.process_input(game_id, "你好")
+
+    assert response.npc_response
+    assert response.npc_id == "innkeeper"
+
+
+@pytest.mark.asyncio
+async def test_move_and_talk_at_new_location(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "前往镇政厅")
+    response = await engine.process_input(game_id, "和赫尔曼说话")
+
+    assert response.npc_response
+    assert response.npc_id == "mayor"
+
+
+@pytest.mark.asyncio
+async def test_start_game_no_secrets_leaked(engine):
+    response = await engine.start_game("旅行者")
+
+    for npc in response.available_npcs:
+        npc_dict = npc.model_dump()
+        assert "secrets" not in npc_dict
+        assert "backstory" not in npc_dict
+        assert "id" in npc_dict
+        assert "name" in npc_dict
+        assert "role" in npc_dict
+
+
+@pytest.mark.asyncio
+async def test_get_state_no_secrets_leaked(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    state = await engine.get_state(game_id)
+    state_dict = state.model_dump()
+
+    state_json = str(state_dict)
+    for secret in [
+        "她知道矿坑失踪案与镇长有关",
+        "他与矿业公司签了秘密协议",
+        "他亲眼目睹了矿坑中发生的一切",
+    ]:
+        assert secret not in state_json

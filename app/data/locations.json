@@ -1,0 +1,23 @@
+[
+  {
+    "id": "tavern",
+    "name": "破晓酒馆",
+    "description": "一间昏暗但温馨的小酒馆，空气中弥漫着麦酒和烤肉的香气。墙上挂着几幅褪色的画作，壁炉中的火焰跳动着，映照出温暖的橘色光芒。吧台后面的架子上摆满了各种酒瓶，老板娘艾琳娜正在擦拭杯子。",
+    "connections": ["town_hall"],
+    "available_npcs": ["innkeeper"]
+  },
+  {
+    "id": "town_hall",
+    "name": "镇政厅",
+    "description": "一座两层的石砌建筑，外观庄严但有些年久失修。大厅里挂着边境小镇的历史照片，空气中有一股陈旧的木头味。镇长赫尔曼的办公室在二楼，门口站着一个看起来不太尽职的守卫。",
+    "connections": ["tavern", "abandoned_mine"],
+    "available_npcs": ["mayor"]
+  },
+  {
+    "id": "abandoned_mine",
+    "name": "废弃矿坑",
+    "description": "矿坑入口被锈迹斑斑的铁栅栏半遮着，但并没有真正锁上。洞口吹出阴冷的风，带着一股说不清的化学气味。地面上散落着旧矿灯和破碎的工具。远处偶尔传来不明声响，让人脊背发凉。",
+    "connections": ["town_hall"],
+    "available_npcs": ["miner"]
+  }
+]
