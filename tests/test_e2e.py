@@ -129,7 +129,7 @@ async def test_main_quest_full_flow(engine):
     assert await _get_trust(engine, game_id, "innkeeper") == 34
     mc = await _get_quest_state(engine, game_id, "missing_case")
     assert mc.current_stage == "heard_rumor"
-    assert r2.state_changes.flag_changes.get("heard_rumor") is True
+    assert r2.state_changes.flag_changes.get("quest_missing_case_heard_rumor") is True
 
     r3 = await engine.process_input(game_id, "前往镇政厅")
     assert r3.state_changes.location_changed is True
@@ -142,7 +142,7 @@ async def test_main_quest_full_flow(engine):
     assert r4.state_changes.new_location == "abandoned_mine"
     mc = await _get_quest_state(engine, game_id, "missing_case")
     assert mc.current_stage == "found_clue"
-    assert r4.state_changes.flag_changes.get("found_clue") is True
+    assert r4.state_changes.flag_changes.get("quest_missing_case_found_clue") is True
 
     r5 = await engine.process_input(game_id, "和矿工说话")
     assert r5.npc_id == "miner"
@@ -164,7 +164,7 @@ async def test_main_quest_full_flow(engine):
     assert r7.state_changes.flag_changes.get("mayor_confessed") is True
     mc = await _get_quest_state(engine, game_id, "missing_case")
     assert mc.current_stage == "confronted_mayor"
-    assert r7.state_changes.flag_changes.get("confronted_mayor") is True
+    assert r7.state_changes.flag_changes.get("quest_missing_case_confronted_mayor") is True
 
     r8 = await engine.process_input(game_id, "前往废弃矿坑")
     assert r8.state_changes.location_changed is True
@@ -180,6 +180,52 @@ async def test_main_quest_full_flow(engine):
 
     state = await engine.get_state(game_id)
     assert state.world_state.turn_count == 9
+
+
+@pytest.mark.asyncio
+async def test_no_bare_stage_flag_pollution(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    await engine.process_input(game_id, "和老板娘聊聊")
+    await engine.process_input(game_id, "和老板娘聊聊")
+
+    await engine.process_input(game_id, "前往镇政厅")
+    await engine.process_input(game_id, "前往废弃矿坑")
+
+    state = await engine.get_state(game_id)
+    flags = state.world_state.flags
+
+    for bare_name in ("accepted", "resolved", "heard_rumor", "found_clue",
+                      "confronted_mayor", "found_ledger"):
+        assert bare_name not in flags, (
+            f"裸阶段名 flag '{bare_name}' 不应出现在 world_state.flags 中"
+        )
+
+    assert "quest_missing_case_found_clue" in flags
+    assert "quest_missing_case_heard_rumor" in flags
+
+
+@pytest.mark.asyncio
+async def test_cross_quest_flag_isolation(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    all_flags_collected = {}
+
+    for _ in range(4):
+        r = await engine.process_input(game_id, "和老板娘聊聊")
+        all_flags_collected.update(r.state_changes.flag_changes)
+
+    ll = await _get_quest_state(engine, game_id, "lost_ledger")
+    assert ll.current_stage == "accepted"
+
+    assert "quest_lost_ledger_accepted" in all_flags_collected
+    assert "quest_missing_case_accepted" not in all_flags_collected
+
+    assert "accepted" not in all_flags_collected, (
+        "裸阶段名 'accepted' 不应出现，应使用 quest_ 前缀"
+    )
 
 
 @pytest.mark.asyncio
@@ -207,7 +253,7 @@ async def test_side_quest_full_flow(engine):
     assert await _get_trust(engine, game_id, "innkeeper") == 40
     ll = await _get_quest_state(engine, game_id, "lost_ledger")
     assert ll.current_stage == "accepted"
-    assert r4.state_changes.flag_changes.get("accepted") is True
+    assert r4.state_changes.flag_changes.get("quest_lost_ledger_accepted") is True
 
     await engine.process_input(game_id, "前往镇政厅")
     state = await engine.get_state(game_id)
@@ -225,7 +271,7 @@ async def test_side_quest_full_flow(engine):
     assert await _get_trust(engine, game_id, "mayor") == 29
     ll = await _get_quest_state(engine, game_id, "lost_ledger")
     assert ll.current_stage == "found_ledger"
-    assert r7.state_changes.flag_changes.get("found_ledger") is True
+    assert r7.state_changes.flag_changes.get("quest_lost_ledger_found_ledger") is True
 
     r8 = await engine.process_input(game_id, "前往破晓酒馆")
     assert r8.state_changes.location_changed is True

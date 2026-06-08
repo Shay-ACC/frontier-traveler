@@ -109,7 +109,7 @@ async def test_quest_completion(manager, db):
         ("not_started", {"flags": {"heard_about_missing": True}}),
         ("heard_rumor", {"location": "abandoned_mine", "turn": 3}),
         ("found_clue", {"npc": "mayor", "trust": {"mayor": 30}}),
-        ("confronted_mayor", {"npc": "miner", "flags": {"found_clue": True}}),
+        ("confronted_mayor", {"npc": "miner", "flags": {"quest_missing_case_found_clue": True}}),
     ]
     for stage_id, context in stages:
         state = await manager.get_state(db, "game1", "missing_case")

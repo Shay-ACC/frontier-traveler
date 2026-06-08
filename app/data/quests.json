@@ -27,7 +27,7 @@
       {
         "id": "confronted_mayor",
         "description": "你已经质问了镇长，需要找到矿工托马斯证实一切",
-        "completion_conditions": {"npc": "miner", "flag": "found_clue"},
+        "completion_conditions": {"npc": "miner", "flag": "quest_missing_case_found_clue"},
         "next_stage": "resolved"
       },
       {

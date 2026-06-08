@@ -343,9 +343,10 @@ class GameEngine:
                         new_stage=new_stage,
                     )
                 )
-                ws.flags[new_stage] = True
+                namespaced_flag = f"quest_{quest.id}_{new_stage}"
+                ws.flags[namespaced_flag] = True
                 await WorldState.save(db, ws)
-                state_changes.flag_changes[new_stage] = True
+                state_changes.flag_changes[namespaced_flag] = True
 
     def _calculate_importance(self, instructions: list[ParsedInstruction]) -> int:
         has_quest = any(i.type == "QUEST" for i in instructions)
