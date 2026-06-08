@@ -309,3 +309,81 @@ def test_build_prompt_no_cross_section_when_empty(agent):
         cross_npc_memories=[],
     )
     assert "玩家上下文" not in system_prompt
+
+
+def test_sanitize_cross_memory_content_strips_tags(agent):
+    raw = "[talk|trust+3|quest:missing_case] 第3轮@破晓酒馆：玩家说「你好」，艾琳娜回应「最近有人失踪了」"
+    result = NPCAgent._sanitize_cross_memory_content(raw)
+    assert "[" not in result
+    assert "talk" not in result
+    assert "trust+3" not in result
+    assert "quest:missing_case" not in result
+    assert "第3轮@破晓酒馆" in result
+    assert "旅行者提到" in result
+
+
+def test_sanitize_cross_memory_content_strips_npc_response(agent):
+    raw = "第3轮@破晓酒馆：玩家说「你好」，艾琳娜回应「最近有人失踪了」"
+    result = NPCAgent._sanitize_cross_memory_content(raw)
+    assert "回应" not in result
+    assert "最近有人失踪了" not in result
+    assert "旅行者提到" in result
+
+
+def test_cross_npc_memories_no_npc_response_in_prompt(agent):
+    relationship = Relationship(game_id="g1", npc_id="innkeeper", trust=30)
+    cross_memories = [
+        Memory(
+            id="m1",
+            game_id="g1",
+            npc_id="mayor",
+            type="long_term",
+            content="[talk|trust+3] 第5轮@市政厅：玩家说「矿坑的事」，赫尔曼回应「我什么都不知道」",
+            importance=8,
+            turn=5,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+        ),
+    ]
+    system_prompt, _ = agent.build_prompt(
+        npc_id="innkeeper",
+        player_message="你好",
+        location_name="破晓酒馆",
+        location_description="一个温暖的酒馆",
+        time_of_day="evening",
+        relationship=relationship,
+        memories=[],
+        quest_states=[],
+        cross_npc_memories=cross_memories,
+    )
+    assert "我什么都不知道" not in system_prompt
+    assert "trust+3" not in system_prompt
+    assert "[talk" not in system_prompt
+    assert "旅行者提到" in system_prompt
+
+
+def test_own_memories_keep_full_content(agent):
+    relationship = Relationship(game_id="g1", npc_id="innkeeper", trust=30)
+    own_memories = [
+        Memory(
+            id="m1",
+            game_id="g1",
+            npc_id="innkeeper",
+            type="short_term",
+            content="[talk|trust+3] 第3轮@破晓酒馆：玩家说「你好」，艾琳娜回应「欢迎」",
+            importance=5,
+            turn=3,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+        ),
+    ]
+    system_prompt, _ = agent.build_prompt(
+        npc_id="innkeeper",
+        player_message="你好",
+        location_name="破晓酒馆",
+        location_description="一个温暖的酒馆",
+        time_of_day="evening",
+        relationship=relationship,
+        memories=own_memories,
+        quest_states=[],
+    )
+    assert "[talk|trust+3]" in system_prompt
+    assert "艾琳娜回应" in system_prompt

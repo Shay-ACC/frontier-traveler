@@ -127,6 +127,15 @@ async def test_recall_returns_long_and_short(db, manager):
 
 
 @pytest.mark.asyncio
+async def test_memories_do_not_contain_secrets_or_backstory(db, manager):
+    memory = await manager.add_short_term(db, GAME_ID, NPC_ID, "旅行者问了关于失踪案的事", importance=5, turn=1)
+    assert "秘密" not in memory.content
+    assert "backstory" not in memory.content.lower()
+    assert "矿坑失踪案与镇长" not in memory.content
+    assert "亲眼目睹" not in memory.content
+
+
+@pytest.mark.asyncio
 async def test_recall_increments_accessed_count(db, manager):
     await manager.add_short_term(db, GAME_ID, NPC_ID, "记忆A", importance=5, turn=1)
 

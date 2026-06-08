@@ -160,6 +160,11 @@ function sendMessage() {
         });
 }
 
+function stripMemoryTags(content) {
+    if (!content) return "";
+    return content.replace(/^\[[^\]]*\]\s*/, "");
+}
+
 function refreshState() {
     if (!gameId) return;
 
@@ -243,7 +248,7 @@ function refreshState() {
 
                     var body = document.createElement("div");
                     body.className = "memory-body";
-                    var content = m.content || "";
+                    var content = stripMemoryTags(m.content || "");
                     body.textContent = content.length > 80 ? content.substring(0, 80) + "..." : content;
 
                     item.appendChild(header);

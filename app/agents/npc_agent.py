@@ -28,6 +28,9 @@ class NPCResponse:
 
 
 class NPCAgent:
+    _TAG_PATTERN = re.compile(r"^\[[^\]]*\]\s*")
+    _NPC_RESPONSE_PATTERN = re.compile(r"，[^，]+回应「[^」]*」")
+
     def __init__(self, llm_provider: BaseLLMProvider):
         self._llm = llm_provider
         self._npcs: dict[str, NPC] = {}
@@ -41,6 +44,13 @@ class NPCAgent:
 
     def get_npc(self, npc_id: str) -> NPC | None:
         return self._npcs.get(npc_id)
+
+    @staticmethod
+    def _sanitize_cross_memory_content(content: str) -> str:
+        result = NPCAgent._TAG_PATTERN.sub("", content)
+        result = NPCAgent._NPC_RESPONSE_PATTERN.sub("", result)
+        result = result.replace("玩家说", "旅行者提到")
+        return result.strip()
 
     def build_prompt(
         self,
@@ -73,7 +83,8 @@ class NPCAgent:
                 cross_name = self._npcs.get(mem.npc_id)
                 name = cross_name.name if cross_name else mem.npc_id
                 label = "重要" if mem.importance >= 7 else "普通"
-                cross_text += f"- [{label}] (第{mem.turn}轮，来自与{name}的对话) {mem.content}\n"
+                safe_content = self._sanitize_cross_memory_content(mem.content)
+                cross_text += f"- [{label}] (第{mem.turn}轮，来自与{name}的对话) {safe_content}\n"
 
         secrets_text = ""
         for i, secret in enumerate(npc.secrets, 1):

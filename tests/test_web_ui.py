@@ -100,3 +100,13 @@ async def test_css_memory_styles(client):
     assert ".memory-type-long" in css
     assert ".memory-type-short" in css
     assert ".memory-important" in css
+
+
+@pytest.mark.asyncio
+async def test_js_contains_strip_memory_tags(client):
+    response = await client.get("/static/app.js")
+    assert response.status_code == 200
+    js = response.text
+    assert "stripMemoryTags" in js
+    assert "replace" in js
+    assert "\\[" in js or "[^" in js
