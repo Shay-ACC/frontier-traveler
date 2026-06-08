@@ -1,0 +1,13 @@
+- [x] `_sanitize_cross_memory_content()` 能去掉 `[...]` 标签块和 NPC 回应部分
+- [x] cross_npc_memories 注入 Prompt 时不含其他 NPC 回应原文
+- [x] cross_npc_memories 注入 Prompt 时不含 trust+/quest: 等内部标签
+- [x] 当前 NPC 自己的 memories 保留完整 content（含标签和 NPC 回应）
+- [x] app.js `stripMemoryTags()` 能去掉 `[...]` 标签块
+- [x] Web UI 记忆面板不展示 `[talk|trust+3|...]` 等内部标签
+- [x] `stripMemoryTags()` 对不含标签的旧格式 content 向后兼容
+- [x] 显式测试验证 memories 表不包含 NPC secrets/backstory
+- [x] 全部 101 个现有测试通过
+- [x] 新增约 6 个测试全部通过
+- [x] 不修改 DB schema
+- [x] 不修改 memories 表中的原始 content
+- [x] 不修改 GameEngine、QuestManager、RelationshipManager、LLMAdapter 核心逻辑
