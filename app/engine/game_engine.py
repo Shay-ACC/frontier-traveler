@@ -87,12 +87,19 @@ class GameEngine:
 
             intent = self._parse_intent(message)
 
-            if intent["type"] == "move":
-                return await self._handle_move(db, ws, intent, message)
-            elif intent["type"] == "talk":
-                return await self._handle_talk(db, ws, intent, message)
-            else:
-                return await self._handle_generic(db, ws, message)
+            try:
+                if intent["type"] == "move":
+                    result = await self._handle_move(db, ws, intent, message)
+                elif intent["type"] == "talk":
+                    result = await self._handle_talk(db, ws, intent, message)
+                else:
+                    result = await self._handle_generic(db, ws, message)
+            except Exception:
+                await db.rollback()
+                raise
+
+            await db.commit()
+            return result
 
     def _parse_intent(self, message: str) -> dict:
         location_keywords = {
@@ -164,7 +171,7 @@ class GameEngine:
 
         ws.current_location = target
         ws.turn_count += 1
-        await WorldState.save(db, ws)
+        await WorldState.save(db, ws, auto_commit=False)
 
         location = self.world_state.get_location(target)
         narration = f"你来到了{location.name}。\n{location.description}"
@@ -212,7 +219,7 @@ class GameEngine:
             )
 
         ws.turn_count += 1
-        await WorldState.save(db, ws)
+        await WorldState.save(db, ws, auto_commit=False)
 
         npc = self.npc_agent.get_npc(npc_id)
         location = self.world_state.get_location(ws.current_location)
@@ -220,7 +227,7 @@ class GameEngine:
         if relationship is None:
             relationship = Relationship(game_id=ws.game_id, npc_id=npc_id)
 
-        memories = await self.memory_manager.recall(db, ws.game_id, npc_id)
+        memories = await self.memory_manager.recall(db, ws.game_id, npc_id, auto_commit=False)
         quest_states = await self.quest_manager.get_all_states(db, ws.game_id)
 
         npc_response = await self.npc_agent.get_npc_response(
@@ -246,7 +253,8 @@ class GameEngine:
             f"{npc.name}回应「{npc_response.dialogue[:50]}」"
         )
         await self.memory_manager.add_short_term(
-            db, ws.game_id, npc_id, memory_content, importance, ws.turn_count
+            db, ws.game_id, npc_id, memory_content, importance, ws.turn_count,
+            auto_commit=False
         )
 
         return PlayerInputResponse(
@@ -267,7 +275,7 @@ class GameEngine:
             )
 
         ws.turn_count += 1
-        await WorldState.save(db, ws)
+        await WorldState.save(db, ws, auto_commit=False)
 
         return PlayerInputResponse(
             npc_response="",
@@ -288,7 +296,8 @@ class GameEngine:
         for inst in instructions:
             if inst.type == "TRUST":
                 rel = await self.relationship_manager.modify(
-                    db, ws.game_id, inst.npc_id, "trust", inst.delta
+                    db, ws.game_id, inst.npc_id, "trust", inst.delta,
+                    auto_commit=False
                 )
                 if rel:
                     state_changes.relationship_changes.append(
@@ -299,7 +308,7 @@ class GameEngine:
             elif inst.type == "FLAG":
                 flag_value = inst.flag_value.lower() == "true"
                 ws.flags[inst.flag_name] = flag_value
-                await WorldState.save(db, ws)
+                await WorldState.save(db, ws, auto_commit=False)
                 state_changes.flag_changes[inst.flag_name] = flag_value
             elif inst.type == "QUEST":
                 pass
@@ -329,7 +338,7 @@ class GameEngine:
 
             old_stage = state.current_stage
             success = await self.quest_manager.advance(
-                db, ws.game_id, quest.id, context
+                db, ws.game_id, quest.id, context, auto_commit=False
             )
             if success:
                 new_state = await self.quest_manager.get_state(
@@ -345,7 +354,7 @@ class GameEngine:
                 )
                 namespaced_flag = f"quest_{quest.id}_{new_stage}"
                 ws.flags[namespaced_flag] = True
-                await WorldState.save(db, ws)
+                await WorldState.save(db, ws, auto_commit=False)
                 state_changes.flag_changes[namespaced_flag] = True
 
     def _calculate_importance(self, instructions: list[ParsedInstruction]) -> int:

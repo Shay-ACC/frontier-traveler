@@ -9,7 +9,7 @@ class MemoryManager:
     PROMOTION_THRESHOLD = 7
     RECALL_RECENT_COUNT = 5
 
-    async def add_short_term(self, db, game_id: str, npc_id: str, content: str, importance: int, turn: int):
+    async def add_short_term(self, db, game_id: str, npc_id: str, content: str, importance: int, turn: int, auto_commit: bool = True):
         memory = Memory(
             id=str(uuid.uuid4()),
             game_id=game_id,
@@ -25,18 +25,20 @@ class MemoryManager:
             "INSERT INTO memories (id, game_id, npc_id, type, content, importance, turn, created_at, accessed_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (memory.id, memory.game_id, memory.npc_id, memory.type, memory.content, memory.importance, memory.turn, memory.created_at.isoformat(), memory.accessed_count),
         )
-        await db.commit()
-        await self.cleanup_expired(db, game_id, npc_id)
+        if auto_commit:
+            await db.commit()
+        await self.cleanup_expired(db, game_id, npc_id, auto_commit=auto_commit)
         return memory
 
-    async def promote_to_long_term(self, db, memory_id: str):
+    async def promote_to_long_term(self, db, memory_id: str, auto_commit: bool = True):
         await db.execute(
             "UPDATE memories SET type = 'long_term' WHERE id = ?",
             (memory_id,),
         )
-        await db.commit()
+        if auto_commit:
+            await db.commit()
 
-    async def recall(self, db, game_id: str, npc_id: str) -> list[Memory]:
+    async def recall(self, db, game_id: str, npc_id: str, auto_commit: bool = True) -> list[Memory]:
         long_term_rows = await db.execute_fetchall(
             "SELECT * FROM memories WHERE game_id = ? AND npc_id = ? AND type = 'long_term'",
             (game_id, npc_id),
@@ -67,7 +69,8 @@ class MemoryManager:
                 (mem.id,),
             )
             mem.accessed_count += 1
-        await db.commit()
+        if auto_commit:
+            await db.commit()
 
         memories.sort(key=lambda m: (-m.importance, m.accessed_count))
         return memories
@@ -124,7 +127,7 @@ class MemoryManager:
         row = await cursor.fetchone()
         return row["cnt"]
 
-    async def cleanup_expired(self, db, game_id: str, npc_id: str):
+    async def cleanup_expired(self, db, game_id: str, npc_id: str, auto_commit: bool = True):
         while await self.count_short_term(db, game_id, npc_id) > self.SHORT_TERM_LIMIT:
             cursor = await db.execute(
                 "SELECT * FROM memories WHERE game_id = ? AND npc_id = ? AND type = 'short_term' ORDER BY turn ASC LIMIT 1",
@@ -134,7 +137,8 @@ class MemoryManager:
             if row is None:
                 break
             if row["importance"] >= self.PROMOTION_THRESHOLD:
-                await self.promote_to_long_term(db, row["id"])
+                await self.promote_to_long_term(db, row["id"], auto_commit=False)
             else:
                 await db.execute("DELETE FROM memories WHERE id = ?", (row["id"],))
-                await db.commit()
+        if auto_commit:
+            await db.commit()

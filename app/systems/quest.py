@@ -79,7 +79,7 @@ class QuestManager:
             return False
         return stage.next_stage == target_stage
 
-    async def advance(self, db, game_id: str, quest_id: str, context: dict) -> bool:
+    async def advance(self, db, game_id: str, quest_id: str, context: dict, auto_commit: bool = True) -> bool:
         state = await self.get_state(db, game_id, quest_id)
         if state is None or state.completed:
             return False
@@ -95,7 +95,8 @@ class QuestManager:
                 "UPDATE quest_states SET completed = 1, current_stage = ?, stage_history = ? WHERE game_id = ? AND quest_id = ?",
                 (state.current_stage, json.dumps(state.stage_history), game_id, quest_id),
             )
-            await db.commit()
+            if auto_commit:
+                await db.commit()
             return True
         state.stage_history.append(state.current_stage)
         state.current_stage = stage.next_stage
@@ -105,7 +106,8 @@ class QuestManager:
             "UPDATE quest_states SET current_stage = ?, completed = ?, stage_history = ? WHERE game_id = ? AND quest_id = ?",
             (state.current_stage, int(completed), json.dumps(state.stage_history), game_id, quest_id),
         )
-        await db.commit()
+        if auto_commit:
+            await db.commit()
         return True
 
     def _check_conditions(self, conditions: dict, context: dict) -> bool:

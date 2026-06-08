@@ -69,7 +69,7 @@ class RelationshipManager:
             for row in rows
         ]
 
-    async def modify(self, db, game_id: str, npc_id: str, field: str, delta: int) -> Relationship | None:
+    async def modify(self, db, game_id: str, npc_id: str, field: str, delta: int, auto_commit: bool = True) -> Relationship | None:
         rel = await self.get(db, game_id, npc_id)
         if rel is None:
             return None
@@ -82,5 +82,6 @@ class RelationshipManager:
             "UPDATE relationships SET trust = ?, affection = ?, status = ? WHERE game_id = ? AND npc_id = ?",
             (rel.trust, rel.affection, rel.status, game_id, npc_id),
         )
-        await db.commit()
+        if auto_commit:
+            await db.commit()
         return rel

@@ -251,3 +251,51 @@ async def test_get_state_no_secrets_leaked(engine):
         "他亲眼目睹了矿坑中发生的一切",
     ]:
         assert secret not in state_json
+
+
+@pytest.mark.asyncio
+async def test_process_input_all_state_persisted(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    state_before = await engine.get_state(game_id)
+    assert state_before.world_state.turn_count == 0
+    innkeeper_before = [r for r in state_before.relationships if r.npc_id == "innkeeper"][0]
+    assert innkeeper_before.trust == 30
+    assert len(state_before.recent_memories) == 0
+
+    result = await engine.process_input(game_id, "和老板娘聊聊")
+    assert result.npc_id == "innkeeper"
+
+    state_after = await engine.get_state(game_id)
+    assert state_after.world_state.turn_count == 1
+
+    innkeeper_after = [r for r in state_after.relationships if r.npc_id == "innkeeper"][0]
+    assert innkeeper_after.trust != innkeeper_before.trust
+
+    assert len(state_after.recent_memories) > 0
+
+
+@pytest.mark.asyncio
+async def test_process_input_rollback_on_failure(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    state_before = await engine.get_state(game_id)
+    turn_before = state_before.world_state.turn_count
+    trust_before = [r for r in state_before.relationships if r.npc_id == "innkeeper"][0].trust
+
+    with patch.object(
+        engine.memory_manager, "add_short_term",
+        side_effect=RuntimeError("simulated failure"),
+    ):
+        with pytest.raises(RuntimeError, match="simulated failure"):
+            await engine.process_input(game_id, "和老板娘聊聊")
+
+    state_after = await engine.get_state(game_id)
+    assert state_after.world_state.turn_count == turn_before
+
+    trust_after = [r for r in state_after.relationships if r.npc_id == "innkeeper"][0].trust
+    assert trust_after == trust_before
+
+    assert len(state_after.recent_memories) == 0

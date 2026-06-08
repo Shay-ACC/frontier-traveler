@@ -56,7 +56,7 @@ class WorldState:
         )
 
     @staticmethod
-    async def save(db, state: WorldStateModel):
+    async def save(db, state: WorldStateModel, auto_commit: bool = True):
         await db.execute(
             "INSERT OR REPLACE INTO games (game_id, current_location, time_of_day, turn_count, flags) VALUES (?, ?, ?, ?, ?)",
             (
@@ -67,7 +67,8 @@ class WorldState:
                 json.dumps(state.flags),
             ),
         )
-        await db.commit()
+        if auto_commit:
+            await db.commit()
 
     @staticmethod
     async def create(db, game_id: str) -> WorldStateModel:
