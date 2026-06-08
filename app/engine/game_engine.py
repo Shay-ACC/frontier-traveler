@@ -2,7 +2,7 @@ import uuid
 
 from app.agents.npc_agent import NPCAgent, ParsedInstruction
 from app.database import get_db
-from app.engine.llm_adapter import MockProvider
+from app.engine.llm_adapter import create_provider
 from app.models.api_schemas import (
     GameStateResponse,
     PlayerInputResponse,
@@ -30,7 +30,7 @@ class GameEngine:
         self.quest_manager = QuestManager()
         self.relationship_manager = RelationshipManager()
         self.memory_manager = MemoryManager()
-        self.npc_agent = NPCAgent(MockProvider())
+        self.npc_agent = NPCAgent(create_provider())
         self._sessions: dict[str, dict] = {}
 
     async def start_game(self, player_name: str = "旅行者") -> StartGameResponse:
@@ -74,32 +74,31 @@ class GameEngine:
             )
 
     async def process_input(self, game_id: str, message: str) -> PlayerInputResponse:
-        async with get_db() as db:
-            ws = await WorldState.load(db, game_id)
-            if ws is None:
-                return PlayerInputResponse(
-                    npc_response="游戏会话不存在。",
-                    npc_id=None,
-                    narration="",
-                    state_changes=StateChanges(),
-                    available_actions=[],
-                )
+        intent = self._parse_intent(message)
 
-            intent = self._parse_intent(message)
-
-            try:
-                if intent["type"] == "move":
+        if intent["type"] == "move":
+            async with get_db() as db:
+                ws = await WorldState.load(db, game_id)
+                if ws is None:
+                    return self._not_found_response()
+                try:
                     result = await self._handle_move(db, ws, intent, message)
-                elif intent["type"] == "talk":
-                    result = await self._handle_talk(db, ws, intent, message)
-                else:
-                    result = await self._handle_generic(db, ws, message)
-            except Exception:
-                await db.rollback()
-                raise
+                except Exception:
+                    await db.rollback()
+                    raise
+                await db.commit()
+                return result
 
-            await db.commit()
-            return result
+        return await self._execute_talk_flow(game_id, intent, message)
+
+    def _not_found_response(self) -> PlayerInputResponse:
+        return PlayerInputResponse(
+            npc_response="游戏会话不存在。",
+            npc_id=None,
+            narration="",
+            state_changes=StateChanges(),
+            available_actions=[],
+        )
 
     def _parse_intent(self, message: str) -> dict:
         location_keywords = {
@@ -187,59 +186,115 @@ class GameEngine:
             available_actions=self._get_available_actions(ws),
         )
 
-    async def _handle_talk(
-        self, db, ws: WorldStateModel, intent: dict, message: str
+    async def _execute_talk_flow(
+        self, game_id: str, intent: dict, message: str
     ) -> PlayerInputResponse:
-        npc_id = intent.get("npc_id")
+        is_generic = intent.get("type") == "generic"
 
+        async with get_db() as db:
+            ws = await WorldState.load(db, game_id)
+            if ws is None:
+                return self._not_found_response()
+
+            talk_ctx = await self._build_talk_context(db, ws, intent)
+
+            if talk_ctx is None:
+                if is_generic:
+                    ws.turn_count += 1
+                    await WorldState.save(db, ws, auto_commit=False)
+                    await db.commit()
+                    return PlayerInputResponse(
+                        npc_response="",
+                        npc_id=None,
+                        narration="你环顾四周，这里空无一人。",
+                        state_changes=StateChanges(),
+                        available_actions=self._get_available_actions(ws),
+                    )
+                return PlayerInputResponse(
+                    npc_response="这里没有人可以交谈。",
+                    npc_id=None,
+                    narration="",
+                    state_changes=StateChanges(),
+                    available_actions=self._get_available_actions(ws),
+                )
+
+            if "error" in talk_ctx:
+                return PlayerInputResponse(
+                    npc_response=talk_ctx["error"],
+                    npc_id=None,
+                    narration="",
+                    state_changes=StateChanges(),
+                    available_actions=self._get_available_actions(ws),
+                )
+
+        npc_response = await self.npc_agent.get_npc_response(
+            npc_id=talk_ctx["npc_id"],
+            player_message=message,
+            location_name=talk_ctx["location"].name,
+            location_description=talk_ctx["location"].description,
+            time_of_day=talk_ctx["time_of_day"],
+            relationship=talk_ctx["relationship"],
+            memories=talk_ctx["memories"],
+            quest_states=talk_ctx["quest_states"],
+        )
+
+        async with get_db() as db:
+            ws = await WorldState.load(db, game_id)
+            if ws is None:
+                return self._not_found_response()
+            try:
+                result = await self._apply_talk_result(
+                    db, ws, talk_ctx["npc_id"], npc_response, message
+                )
+            except Exception:
+                await db.rollback()
+                raise
+            await db.commit()
+            return result
+
+    async def _build_talk_context(
+        self, db, ws: WorldStateModel, intent: dict
+    ) -> dict | None:
+        npc_id = intent.get("npc_id")
         if not npc_id:
             npcs = self.world_state.get_available_npcs(ws.current_location)
             if npcs:
                 npc_id = npcs[0]
 
         if not npc_id:
-            return PlayerInputResponse(
-                npc_response="这里没有人可以交谈。",
-                npc_id=None,
-                narration="",
-                state_changes=StateChanges(),
-                available_actions=self._get_available_actions(ws),
-            )
+            return None
 
         available_npcs = self.world_state.get_available_npcs(ws.current_location)
         if npc_id not in available_npcs:
             npc = self.npc_agent.get_npc(npc_id)
             npc_name = npc.name if npc else npc_id
-            return PlayerInputResponse(
-                npc_response=f"{npc_name}不在这里。",
-                npc_id=None,
-                narration="",
-                state_changes=StateChanges(),
-                available_actions=self._get_available_actions(ws),
-            )
+            return {"error": f"{npc_name}不在这里。"}
 
-        ws.turn_count += 1
-        await WorldState.save(db, ws, auto_commit=False)
-
-        npc = self.npc_agent.get_npc(npc_id)
         location = self.world_state.get_location(ws.current_location)
         relationship = await self.relationship_manager.get(db, ws.game_id, npc_id)
         if relationship is None:
             relationship = Relationship(game_id=ws.game_id, npc_id=npc_id)
 
-        memories = await self.memory_manager.recall(db, ws.game_id, npc_id, auto_commit=False)
+        memories = await self.memory_manager.recall(db, ws.game_id, npc_id, auto_commit=True)
         quest_states = await self.quest_manager.get_all_states(db, ws.game_id)
 
-        npc_response = await self.npc_agent.get_npc_response(
-            npc_id=npc_id,
-            player_message=message,
-            location_name=location.name,
-            location_description=location.description,
-            time_of_day=ws.time_of_day,
-            relationship=relationship,
-            memories=memories,
-            quest_states=quest_states,
-        )
+        return {
+            "npc_id": npc_id,
+            "location": location,
+            "time_of_day": ws.time_of_day,
+            "relationship": relationship,
+            "memories": memories,
+            "quest_states": quest_states,
+        }
+
+    async def _apply_talk_result(
+        self, db, ws: WorldStateModel, npc_id: str,
+        npc_response, message: str
+    ) -> PlayerInputResponse:
+        npc = self.npc_agent.get_npc(npc_id)
+
+        ws.turn_count += 1
+        await WorldState.save(db, ws, auto_commit=False)
 
         state_changes = StateChanges()
         await self._dispatch_instructions(
@@ -262,26 +317,6 @@ class GameEngine:
             npc_id=npc_id,
             narration="",
             state_changes=state_changes,
-            available_actions=self._get_available_actions(ws),
-        )
-
-    async def _handle_generic(
-        self, db, ws: WorldStateModel, message: str
-    ) -> PlayerInputResponse:
-        npcs = self.world_state.get_available_npcs(ws.current_location)
-        if npcs:
-            return await self._handle_talk(
-                db, ws, {"type": "talk", "npc_id": npcs[0]}, message
-            )
-
-        ws.turn_count += 1
-        await WorldState.save(db, ws, auto_commit=False)
-
-        return PlayerInputResponse(
-            npc_response="",
-            npc_id=None,
-            narration="你环顾四周，这里空无一人。",
-            state_changes=StateChanges(),
             available_actions=self._get_available_actions(ws),
         )
 

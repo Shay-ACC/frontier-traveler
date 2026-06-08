@@ -299,3 +299,52 @@ async def test_process_input_rollback_on_failure(engine):
     assert trust_after == trust_before
 
     assert len(state_after.recent_memories) == 0
+
+
+@pytest.mark.asyncio
+async def test_game_engine_default_provider_is_mock(engine):
+    from app.engine.llm_adapter import MockProvider
+    assert isinstance(engine.npc_agent._llm, MockProvider)
+
+
+@pytest.mark.asyncio
+async def test_llm_called_without_open_write_transaction(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    original_generate = engine.npc_agent._llm.generate
+    call_log = []
+
+    async def _spy_generate(system_prompt, user_message):
+        call_log.append("llm_generate_called")
+        result = await original_generate(system_prompt, user_message)
+        return result
+
+    with patch.object(
+        engine.npc_agent._llm, "generate", side_effect=_spy_generate
+    ):
+        await engine.process_input(game_id, "和老板娘聊聊")
+
+    assert len(call_log) == 1
+    assert call_log[0] == "llm_generate_called"
+
+
+@pytest.mark.asyncio
+async def test_write_phase_rollback_on_failure(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    with patch.object(
+        engine.memory_manager, "add_short_term",
+        side_effect=RuntimeError("simulated failure"),
+    ):
+        with pytest.raises(RuntimeError, match="simulated failure"):
+            await engine.process_input(game_id, "和老板娘聊聊")
+
+    state_after = await engine.get_state(game_id)
+    assert state_after.world_state.turn_count == 0
+
+    trust = [r for r in state_after.relationships if r.npc_id == "innkeeper"][0].trust
+    assert trust == 30
+
+    assert len(state_after.recent_memories) == 0
