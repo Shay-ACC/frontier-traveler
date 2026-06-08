@@ -134,7 +134,7 @@ function sendMessage() {
 
             var npcName = NPC_NAME_MAP[data.npc_id] || data.npc_id || "旁白";
             var npcTag = '<span class="npc-tag">' + escapeHtml(npcName) + "</span><br>";
-            addDialogBubble("npc", npcTag + escapeHtml(data.response || ""));
+            addDialogBubble("npc", npcTag + escapeHtml(data.npc_response || "(沉默)"));
 
             if (data.state_changes) {
                 if (data.state_changes.quest_updates && data.state_changes.quest_updates.length > 0) {
@@ -172,8 +172,9 @@ function refreshState() {
             if (data.error) throw new Error(data.error);
 
             gameIdEl.textContent = data.game_id || gameId;
-            currentLocationEl.textContent = data.location || "-";
-            turnCountEl.textContent = data.turn_count != null ? data.turn_count : "-";
+            var ws = data.world_state || {};
+            currentLocationEl.textContent = ws.current_location || "-";
+            turnCountEl.textContent = ws.turn_count != null ? ws.turn_count : "-";
 
             if (data.relationships && data.relationships.length > 0) {
                 relationshipsEl.innerHTML = "";

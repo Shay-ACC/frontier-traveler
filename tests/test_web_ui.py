@@ -34,6 +34,26 @@ async def test_static_js(client):
 
 
 @pytest.mark.asyncio
+async def test_js_reads_npc_response_field(client):
+    response = await client.get("/static/app.js")
+    assert response.status_code == 200
+    js = response.text
+    assert "data.npc_response" in js
+    assert "data.response" not in js
+
+
+@pytest.mark.asyncio
+async def test_js_reads_world_state_fields(client):
+    response = await client.get("/static/app.js")
+    assert response.status_code == 200
+    js = response.text
+    assert "ws.current_location" in js
+    assert "ws.turn_count" in js
+    assert "data.location" not in js
+    assert "data.turn_count" not in js
+
+
+@pytest.mark.asyncio
 async def test_game_start_still_works(client):
     response = await client.post("/game/start", json={"player_name": "旅行者"})
     assert response.status_code == 200
