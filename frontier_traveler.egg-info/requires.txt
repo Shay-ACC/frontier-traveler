@@ -1,9 +1,0 @@
-fastapi
-uvicorn[standard]
-pydantic>=2.0
-aiosqlite
-
-[dev]
-pytest
-pytest-asyncio
-httpx
