@@ -1,5 +1,13 @@
+import os
+import logging
 import re
 from abc import ABC, abstractmethod
+
+import httpx
+
+
+class LLMProviderError(Exception):
+    pass
 
 
 class BaseLLMProvider(ABC):
@@ -199,3 +207,97 @@ class MockProvider(BaseLLMProvider):
             return templates.get("high_trust", "")
 
         return "（沉默了一会）...你好。"
+
+
+class OpenAIProvider(BaseLLMProvider):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://api.openai.com/v1",
+        model: str = "gpt-4o-mini",
+        timeout: int = 30,
+    ):
+        self._api_key = api_key
+        self._base_url = base_url.rstrip("/")
+        self._model = model
+        self._timeout = timeout
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=float(timeout), write=10.0, pool=10.0),
+        )
+
+    async def generate(self, system_prompt: str, user_message: str) -> str:
+        url = f"{self._base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self._model,
+            "temperature": 0.7,
+            "max_tokens": 500,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+        }
+        try:
+            response = await self._client.post(url, json=payload, headers=headers)
+        except httpx.HTTPError as exc:
+            raise LLMProviderError(f"Network error: {exc}") from exc
+
+        if response.status_code != 200:
+            raise LLMProviderError(
+                f"API returned status {response.status_code}: {response.text[:200]}"
+            )
+
+        try:
+            data = response.json()
+        except Exception as exc:
+            raise LLMProviderError(f"JSON decode error: {exc}") from exc
+
+        try:
+            return data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMProviderError(f"Unexpected response format: {exc}") from exc
+
+
+logger = logging.getLogger(__name__)
+
+
+class FallbackProvider(BaseLLMProvider):
+    def __init__(self, primary: BaseLLMProvider, fallback: BaseLLMProvider):
+        self._primary = primary
+        self._fallback = fallback
+
+    async def generate(self, system_prompt: str, user_message: str) -> str:
+        try:
+            return await self._primary.generate(system_prompt, user_message)
+        except Exception as exc:
+            logger.warning("LLM primary provider failed, falling back to mock: %s", exc)
+            return await self._fallback.generate(system_prompt, user_message)
+
+
+def create_provider() -> BaseLLMProvider:
+    provider_type = os.environ.get("LLM_PROVIDER", "mock").lower()
+    if provider_type == "openai":
+        api_key = os.environ.get("LLM_API_KEY", "")
+        if not api_key:
+            logger.warning("LLM_API_KEY not set, falling back to MockProvider")
+            return MockProvider()
+        base_url = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
+        model = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+        timeout = 30
+        raw_timeout = os.environ.get("LLM_TIMEOUT", "30")
+        try:
+            timeout = int(raw_timeout)
+        except (ValueError, TypeError):
+            logger.warning("Invalid LLM_TIMEOUT value %r, falling back to 30", raw_timeout)
+            timeout = 30
+        if timeout <= 0:
+            logger.warning("LLM_TIMEOUT must be positive, got %d, falling back to 30", timeout)
+            timeout = 30
+        primary = OpenAIProvider(
+            api_key=api_key, base_url=base_url, model=model, timeout=timeout,
+        )
+        return FallbackProvider(primary=primary, fallback=MockProvider())
+    return MockProvider()
