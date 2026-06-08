@@ -1,0 +1,15 @@
+- [x] app/templates/index.html 存在，包含标题栏、三栏布局、输入区域、错误提示区
+- [x] app/static/style.css 存在，实现深色主题、三栏布局、对话气泡、响应式
+- [x] app/static/app.js 存在，实现开始游戏、发送输入、刷新状态、错误处理
+- [x] main.py 挂载 StaticFiles 和 GET / 路由（使用 HTMLResponse 直接读取 HTML 文件，无需 Jinja2）
+- [x] GET / 返回 200 和 HTML 内容
+- [x] GET /static/style.css 返回 200
+- [x] GET /static/app.js 返回 200
+- [x] 现有 API 端点（/game/start、/game/input、/game/state）不受影响
+- [x] pyproject.toml 未引入 jinja2 依赖（改用 HTMLResponse 直接读取，无需模板引擎）
+- [x] README 包含 Web UI 启动说明
+- [x] 全部测试通过（原有 75 + 新增 6 = 81）
+- [x] 未引入 React、Vue、Vite、Node 工程
+- [x] 未修改 GameEngine、QuestManager、MemoryManager、RelationshipManager、LLMAdapter 核心逻辑
+- [x] 未新增数据库表
+- [x] 前端仅调用现有 API，无额外后端端点
