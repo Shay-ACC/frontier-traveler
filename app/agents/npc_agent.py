@@ -52,6 +52,7 @@ class NPCAgent:
         relationship: Relationship,
         memories: list[Memory],
         quest_states: list[QuestState],
+        cross_npc_memories: list[Memory] | None = None,
     ) -> tuple[str, str]:
         npc = self._npcs.get(npc_id)
         if npc is None:
@@ -63,11 +64,33 @@ class NPCAgent:
 
         memory_text = ""
         for mem in memories:
-            memory_text += f"- (第{mem.turn}轮) {mem.content}\n"
+            label = "重要" if mem.importance >= 7 else "普通"
+            memory_text += f"- [{label}] (第{mem.turn}轮) {mem.content}\n"
+
+        cross_text = ""
+        if cross_npc_memories:
+            for mem in cross_npc_memories:
+                cross_name = self._npcs.get(mem.npc_id)
+                name = cross_name.name if cross_name else mem.npc_id
+                label = "重要" if mem.importance >= 7 else "普通"
+                cross_text += f"- [{label}] (第{mem.turn}轮，来自与{name}的对话) {mem.content}\n"
 
         secrets_text = ""
         for i, secret in enumerate(npc.secrets, 1):
             secrets_text += f"{i}. {secret}\n"
+
+        cross_section = ""
+        if cross_text:
+            cross_section = (
+                "\n来自其他对话的玩家上下文：\n"
+                "以下信息来自旅行者在其他场景或其他 NPC 对话中的经历，"
+                "只用于帮助理解玩家当前输入。"
+                "这些不代表你（{npc_name}）自己知道的事实。"
+                "除非玩家在当前对话中主动提及，"
+                "否则你不得表现为已经知道这些内容，"
+                "也不得直接引用其他 NPC 的原话。\n"
+                f"{cross_text}"
+            ).format(npc_name=npc.name)
 
         system_prompt = (
             f"你是《边境小镇：记忆旅人》中的 NPC：{npc.name}。\n"
@@ -81,7 +104,8 @@ class NPCAgent:
             f"- 你对旅行者的好感度：{relationship.affection}/100\n"
             f"- 关系状态：{relationship.status}\n\n"
             f"关于以下任务的知识：\n{quest_knowledge}\n"
-            f"你记得的事情：\n{memory_text}\n"
+            f"你记得的事情（按重要程度排列）：\n{memory_text}"
+            f"{cross_section}\n"
             f"你的秘密（只在特定条件下透露）：\n{secrets_text}\n\n"
             f"严格规则：\n"
             f"1. 始终保持角色，不要跳出角色\n"
@@ -167,10 +191,12 @@ class NPCAgent:
         relationship: Relationship,
         memories: list[Memory],
         quest_states: list[QuestState],
+        cross_npc_memories: list[Memory] | None = None,
     ) -> NPCResponse:
         system_prompt, user_msg = self.build_prompt(
             npc_id, player_message, location_name, location_description,
             time_of_day, relationship, memories, quest_states,
+            cross_npc_memories=cross_npc_memories,
         )
         raw = await self._llm.generate(system_prompt, user_msg)
         return self.parse_response(raw)

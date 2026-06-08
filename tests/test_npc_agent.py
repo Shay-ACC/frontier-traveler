@@ -193,3 +193,119 @@ async def test_get_npc_response_integration(agent):
     )
     assert response.dialogue != ""
     assert len(response.instructions) > 0
+
+
+def test_build_prompt_memory_importance_labels(agent):
+    relationship = Relationship(game_id="g1", npc_id="innkeeper", trust=30)
+    memories = [
+        Memory(
+            id="m1",
+            game_id="g1",
+            npc_id="innkeeper",
+            type="long_term",
+            content="重要记忆",
+            importance=8,
+            turn=1,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+        ),
+        Memory(
+            id="m2",
+            game_id="g1",
+            npc_id="innkeeper",
+            type="short_term",
+            content="普通记忆",
+            importance=3,
+            turn=2,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+        ),
+    ]
+    system_prompt, _ = agent.build_prompt(
+        npc_id="innkeeper",
+        player_message="你好",
+        location_name="破晓酒馆",
+        location_description="一个温暖的酒馆",
+        time_of_day="evening",
+        relationship=relationship,
+        memories=memories,
+        quest_states=[],
+    )
+    assert "[重要]" in system_prompt
+    assert "[普通]" in system_prompt
+
+
+def test_build_prompt_cross_npc_memories(agent):
+    relationship = Relationship(game_id="g1", npc_id="innkeeper", trust=30)
+    cross_memories = [
+        Memory(
+            id="m1",
+            game_id="g1",
+            npc_id="mayor",
+            type="long_term",
+            content="镇长提到了矿坑",
+            importance=8,
+            turn=3,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+        ),
+    ]
+    system_prompt, _ = agent.build_prompt(
+        npc_id="innkeeper",
+        player_message="你好",
+        location_name="破晓酒馆",
+        location_description="一个温暖的酒馆",
+        time_of_day="evening",
+        relationship=relationship,
+        memories=[],
+        quest_states=[],
+        cross_npc_memories=cross_memories,
+    )
+    assert "玩家上下文" in system_prompt
+    assert "不代表" in system_prompt
+    assert "不得" in system_prompt
+    assert "赫尔曼" in system_prompt or "mayor" in system_prompt
+    assert "镇长提到了矿坑" in system_prompt
+
+
+def test_build_prompt_cross_npc_knowledge_constraint(agent):
+    relationship = Relationship(game_id="g1", npc_id="innkeeper", trust=30)
+    cross_memories = [
+        Memory(
+            id="m1",
+            game_id="g1",
+            npc_id="mayor",
+            type="long_term",
+            content="test",
+            importance=8,
+            turn=1,
+            created_at=datetime(2025, 1, 1, 12, 0, 0),
+        ),
+    ]
+    system_prompt, _ = agent.build_prompt(
+        npc_id="innkeeper",
+        player_message="你好",
+        location_name="破晓酒馆",
+        location_description="一个温暖的酒馆",
+        time_of_day="evening",
+        relationship=relationship,
+        memories=[],
+        quest_states=[],
+        cross_npc_memories=cross_memories,
+    )
+    assert "自己知道" in system_prompt
+    assert "引用其他 NPC 的原话" in system_prompt or "引用其他NPC的原话" in system_prompt
+    assert "艾琳娜" in system_prompt
+
+
+def test_build_prompt_no_cross_section_when_empty(agent):
+    relationship = Relationship(game_id="g1", npc_id="innkeeper", trust=30)
+    system_prompt, _ = agent.build_prompt(
+        npc_id="innkeeper",
+        player_message="你好",
+        location_name="破晓酒馆",
+        location_description="一个温暖的酒馆",
+        time_of_day="evening",
+        relationship=relationship,
+        memories=[],
+        quest_states=[],
+        cross_npc_memories=[],
+    )
+    assert "玩家上下文" not in system_prompt
