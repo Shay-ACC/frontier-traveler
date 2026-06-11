@@ -1,0 +1,52 @@
+[
+  {
+    "id": "traveler_arrival",
+    "title": "神秘旅人",
+    "narration": "一个裹着斗篷的陌生人走进了镇子，他似乎在寻找什么人。他在酒馆门口站了一会儿，又朝矿坑的方向去了。",
+    "trigger_turn": 5,
+    "required_flags": {},
+    "forbidden_flags": ["town_event_traveler_arrival"],
+    "set_flags": ["town_event_traveler_arrival", "stranger_seen"],
+    "importance": 6
+  },
+  {
+    "id": "market_closed",
+    "title": "集市关闭",
+    "narration": "镇上的商贩们开始收拾摊位。据说是镇长下令暂时关闭集市，理由是'近期治安不稳定'。",
+    "trigger_turn": 8,
+    "required_flags": {"heard_about_missing": true},
+    "forbidden_flags": ["town_event_market_closed"],
+    "set_flags": ["town_event_market_closed"],
+    "importance": 4
+  },
+  {
+    "id": "night_whispers",
+    "title": "深夜低语",
+    "narration": "夜深了，你隐约听到矿坑方向传来奇怪的声响。像是有人在呼救，又像是风穿过废弃矿道的回声。",
+    "trigger_turn": 10,
+    "required_flags": {"quest_missing_case_heard_rumor": true},
+    "forbidden_flags": ["town_event_night_whispers"],
+    "set_flags": ["town_event_night_whispers", "heard_cries_at_night"],
+    "importance": 7
+  },
+  {
+    "id": "mayor_announcement",
+    "title": "镇长公告",
+    "narration": "镇长在镇政厅前贴出告示：'近日有外来者散布不实谣言，扰乱治安。如有发现可疑人员，请立即上报。'告示上有镇长的签名，字迹看起来有些潦草。",
+    "trigger_turn": 12,
+    "required_flags": {},
+    "forbidden_flags": ["town_event_mayor_announcement"],
+    "set_flags": ["town_event_mayor_announcement", "mayor_wary"],
+    "importance": 5
+  },
+  {
+    "id": "miner_disappearance",
+    "title": "托马斯失踪",
+    "narration": "你再次来到矿坑入口，但托马斯不见了。地上散落着他的矿灯和一张纸条，上面潦草地写着：'他们知道了，我必须离开。'",
+    "trigger_turn": 15,
+    "required_flags": {"quest_missing_case_found_clue": true},
+    "forbidden_flags": ["town_event_miner_disappearance"],
+    "set_flags": ["town_event_miner_disappearance", "miner_gone"],
+    "importance": 9
+  }
+]

@@ -110,3 +110,19 @@ async def test_js_contains_strip_memory_tags(client):
     assert "stripMemoryTags" in js
     assert "replace" in js
     assert "\\[" in js or "[^" in js
+
+
+@pytest.mark.asyncio
+async def test_js_handles_town_events(client):
+    response = await client.get("/static/app.js")
+    assert response.status_code == 200
+    js = response.text
+    assert "town_events" in js
+    assert "town-event-item" in js
+
+
+@pytest.mark.asyncio
+async def test_index_contains_town_events_section(client):
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "town-events" in response.text

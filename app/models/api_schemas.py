@@ -28,12 +28,20 @@ class RelationshipChange(BaseModel):
     delta: int
 
 
+class TownEvent(BaseModel):
+    event_id: str
+    title: str
+    narration: str
+    importance: int
+
+
 class StateChanges(BaseModel):
     quest_updates: list[QuestUpdate] = []
     relationship_changes: list[RelationshipChange] = []
     flag_changes: dict[str, bool] = {}
     location_changed: bool = False
     new_location: str | None = None
+    town_events: list[TownEvent] = []
 
 
 class StartGameRequest(BaseModel):
@@ -66,3 +74,4 @@ class GameStateResponse(BaseModel):
     relationships: list[Relationship]
     quest_states: list[QuestState]
     recent_memories: list[Memory]
+    triggered_town_events: list[TownEvent] = []

@@ -385,6 +385,23 @@ header h1 {
     overflow-y: auto;
 }
 
+.town-event-item {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-left: 3px solid #888;
+    background: #f9f9f9;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #555;
+}
+
+.town-event-important {
+    border-left-color: #e67e22;
+    background: #fef9e7;
+    color: #333;
+    font-weight: 500;
+}
+
 @media (max-width: 900px) {
     .container {
         grid-template-columns: 1fr;

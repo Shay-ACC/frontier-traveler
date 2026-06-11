@@ -437,3 +437,81 @@ async def test_get_state_includes_long_term_memories(engine):
         has_long = "long_term" in types
         has_short = "short_term" in types
         assert has_long or has_short
+
+
+MOCK_TOWN_EVENTS = [
+    {
+        "id": "test_event",
+        "title": "测试小镇事件",
+        "narration": "一个测试事件发生了。",
+        "trigger_turn": 1,
+        "required_flags": {},
+        "forbidden_flags": ["town_event_test_event"],
+        "set_flags": ["town_event_test_event"],
+        "importance": 5,
+    },
+]
+
+
+@pytest_asyncio.fixture
+async def engine_with_events(db):
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _mock_get_db():
+        yield db
+
+    with (
+        patch("app.systems.world_state.load_json_data", return_value=MOCK_LOCATIONS),
+        patch("app.agents.npc_agent.load_json_data", return_value=MOCK_NPCS),
+        patch("app.systems.relationship.load_json_data", return_value=MOCK_NPCS),
+        patch("app.systems.town_tick.load_json_data", return_value=MOCK_TOWN_EVENTS),
+        patch("app.engine.game_engine.get_db", _mock_get_db),
+    ):
+        yield GameEngine()
+
+
+@pytest.mark.asyncio
+async def test_talk_flow_triggers_town_event(engine_with_events):
+    start = await engine_with_events.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine_with_events.process_input(game_id, "和老板娘聊聊")
+    assert response.npc_response
+    assert len(response.state_changes.town_events) >= 1
+    assert response.state_changes.town_events[0].event_id == "test_event"
+
+
+@pytest.mark.asyncio
+async def test_move_flow_triggers_town_event(engine_with_events):
+    start = await engine_with_events.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine_with_events.process_input(game_id, "前往镇政厅")
+    assert "镇政厅" in response.narration
+    assert len(response.state_changes.town_events) >= 1
+
+
+@pytest.mark.asyncio
+async def test_town_event_after_turn_increment(engine_with_events):
+    start = await engine_with_events.start_game("旅行者")
+    game_id = start.game_id
+
+    state = await engine_with_events.get_state(game_id)
+    assert state.world_state.turn_count == 0
+
+    response = await engine_with_events.process_input(game_id, "和老板娘聊聊")
+    assert response.state_changes.town_events[0].event_id == "test_event"
+
+    state_after = await engine_with_events.get_state(game_id)
+    assert state_after.world_state.turn_count >= 1
+    assert len(state_after.triggered_town_events) >= 1
+
+
+@pytest.mark.asyncio
+async def test_state_changes_default_empty_town_events(engine):
+    start = await engine.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine.process_input(game_id, "和老板娘聊聊")
+    assert response.state_changes.town_events == []

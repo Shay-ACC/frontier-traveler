@@ -1,0 +1,22 @@
+- [x] town_events.json 包含 5 个事件，字段完整（id/title/narration/trigger_turn/required_flags/forbidden_flags/set_flags/importance）
+- [x] TownTickSystem.tick() 在 turn_count >= trigger_turn 时检查触发
+- [x] TownTickSystem.tick() 检查 required_flags 全部满足
+- [x] TownTickSystem.tick() 检查 forbidden_flags 不存在
+- [x] TownTickSystem.tick() 触发后设置 set_flags 到 ws.flags
+- [x] TownTickSystem.tick() 触发后设置去重标记 town_event_{id}
+- [x] TownTickSystem.tick() 不重复触发已触发事件
+- [x] TownTickSystem.get_triggered_events() 返回已触发事件列表
+- [x] StateChanges 新增 town_events 字段，默认空列表
+- [x] GameStateResponse 新增 triggered_town_events 字段，默认空列表
+- [x] GameEngine._apply_talk_result() 在 _try_advance_quests() 后调用 tick()
+- [x] GameEngine._handle_move() 在 _try_advance_quests() 后调用 tick()
+- [x] GameEngine.get_state() 返回 triggered_town_events
+- [x] Web UI sendMessage() 渲染 town_events 为系统消息
+- [x] Web UI refreshState() 渲染已触发事件列表
+- [x] index.html 包含 town-events 区域
+- [x] style.css 包含 .town-event-item 样式
+- [x] 不修改 DB schema
+- [x] 不修改 MemoryManager / QuestManager / RelationshipManager 核心逻辑
+- [x] 不修改 NPCAgent
+- [x] 107 个现有测试全部通过
+- [x] ~15 个新增测试全部通过

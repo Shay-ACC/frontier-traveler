@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.questStatesEl = document.getElementById("quest-states");
     window.memoriesEl = document.getElementById("memories");
     window.flagsEl = document.getElementById("flags");
+    window.townEventsEl = document.getElementById("town-events");
 
     btnStart.onclick = startGame;
     btnSend.onclick = sendMessage;
@@ -148,6 +149,11 @@ function sendMessage() {
                         addDialogBubble("system", "💬 关系变化: " + escapeHtml(rName) + " 信任度 " + (r.change >= 0 ? "+" : "") + r.change);
                     });
                 }
+                if (data.state_changes.town_events && data.state_changes.town_events.length > 0) {
+                    data.state_changes.town_events.forEach(function(evt) {
+                        addDialogBubble("system", "🌆 " + escapeHtml(evt.title) + "：" + escapeHtml(evt.narration));
+                    });
+                }
             }
 
             refreshState();
@@ -257,6 +263,18 @@ function refreshState() {
                 });
             } else {
                 memoriesEl.innerHTML = '<p class="empty-hint">暂无数据</p>';
+            }
+
+            if (data.triggered_town_events && data.triggered_town_events.length > 0) {
+                townEventsEl.innerHTML = "";
+                data.triggered_town_events.forEach(function (evt) {
+                    var item = document.createElement("div");
+                    item.className = "town-event-item" + (evt.importance >= 7 ? " town-event-important" : "");
+                    item.textContent = "[" + evt.title + "] " + (evt.narration.length > 60 ? evt.narration.substring(0, 60) + "..." : evt.narration);
+                    townEventsEl.appendChild(item);
+                });
+            } else {
+                townEventsEl.innerHTML = '<p class="empty-hint">暂无事件</p>';
             }
 
             if (data.world_state && data.world_state.flags) {

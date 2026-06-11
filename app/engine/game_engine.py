@@ -21,6 +21,7 @@ from app.models.relationship import Relationship
 from app.systems.memory import MemoryManager
 from app.systems.quest import QuestManager
 from app.systems.relationship import RelationshipManager
+from app.systems.town_tick import TownTickSystem
 from app.systems.world_state import WorldState
 
 
@@ -34,6 +35,7 @@ class GameEngine:
         self.relationship_manager = RelationshipManager()
         self.memory_manager = MemoryManager()
         self.npc_agent = NPCAgent(create_provider())
+        self.town_tick_system = TownTickSystem()
         self._sessions: dict[str, dict] = {}
 
     async def start_game(self, player_name: str = "旅行者") -> StartGameResponse:
@@ -180,6 +182,10 @@ class GameEngine:
 
         state_changes = StateChanges(location_changed=True, new_location=target)
         await self._try_advance_quests(db, ws, state_changes, npc_id=None)
+        town_events = self.town_tick_system.tick(ws, state_changes)
+        state_changes.town_events = town_events
+        if town_events:
+            await WorldState.save(db, ws, auto_commit=False)
 
         return PlayerInputResponse(
             npc_response="",
@@ -306,6 +312,10 @@ class GameEngine:
             db, ws, npc_id, npc_response.instructions, state_changes
         )
         await self._try_advance_quests(db, ws, state_changes, npc_id=npc_id)
+        town_events = self.town_tick_system.tick(ws, state_changes)
+        state_changes.town_events = town_events
+        if town_events:
+            await WorldState.save(db, ws, auto_commit=False)
 
         importance = self._calculate_importance(message, npc_response.instructions, state_changes)
 
@@ -463,10 +473,13 @@ class GameEngine:
                 mems = await self.memory_manager.get_recent(db, game_id, npc_id, limit=3)
                 recent_memories.extend(mems)
 
+            triggered_town_events = self.town_tick_system.get_triggered_events(ws)
+
             return GameStateResponse(
                 game_id=game_id,
                 world_state=ws,
                 relationships=relationships,
                 quest_states=quest_states,
                 recent_memories=recent_memories,
+                triggered_town_events=triggered_town_events,
             )
