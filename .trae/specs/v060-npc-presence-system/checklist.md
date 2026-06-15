@@ -1,0 +1,22 @@
+- [x] npc_presence_rules.json 包含 miner 的 2 条规则，字段完整（npc_id/rules/location/visible/when_flags/unless_flags/reason）
+- [x] NpcPresenceSystem.get_npcs_at_location() 在 flags 为空时回退到 npcs.json default_location
+- [x] NpcPresenceSystem.get_npcs_at_location() 匹配 when_flags 时返回规则位置
+- [x] NpcPresenceSystem.get_npcs_at_location() 匹配 visible=false 时 NPC 不可见
+- [x] NpcPresenceSystem.get_npcs_at_location() 多规则时 first-match 生效
+- [x] NpcPresenceSystem.get_all_npc_locations() 返回所有 NPC 位置和可见性
+- [x] NpcPresenceSystem.get_absence_reason() 返回 NPC 不在场原因
+- [x] GameStateResponse 新增 npc_locations 字段，默认空列表
+- [x] GameEngine.start_game() 使用 npc_presence_system
+- [x] GameEngine._build_talk_context() 使用 npc_presence_system
+- [x] GameEngine._build_talk_context() NPC 不在场时使用 absence_reason
+- [x] GameEngine._get_available_actions() 使用 npc_presence_system
+- [x] GameEngine.get_state() 返回 npc_locations
+- [x] Web UI refreshState() 渲染 NPC 位置列表
+- [x] index.html 包含 npc-locations 区域
+- [x] style.css 包含 .npc-location-item 样式
+- [x] 不修改 DB schema
+- [x] 不修改 MemoryManager / QuestManager / RelationshipManager / TownTickSystem 核心逻辑
+- [x] 不修改 NPCAgent
+- [x] 不修改 npcs.json / locations.json
+- [x] 124 个现有测试全部通过
+- [x] 17 个新增测试全部通过

@@ -515,3 +515,76 @@ async def test_state_changes_default_empty_town_events(engine):
 
     response = await engine.process_input(game_id, "和老板娘聊聊")
     assert response.state_changes.town_events == []
+
+
+MOCK_PRESENCE_RULES = [
+    {
+        "npc_id": "miner",
+        "rules": [
+            {
+                "location": "tavern",
+                "visible": True,
+                "when_flags": {"miner_gone": True},
+                "unless_flags": {},
+                "reason": "托马斯逃到酒馆了",
+            },
+            {
+                "location": "abandoned_mine",
+                "visible": False,
+                "when_flags": {"miner_gone": True},
+                "unless_flags": {},
+                "reason": "托马斯已经不在矿坑了",
+            },
+        ],
+    },
+]
+
+
+@pytest_asyncio.fixture
+async def engine_with_presence(db):
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _mock_get_db():
+        yield db
+
+    with (
+        patch("app.systems.world_state.load_json_data", return_value=MOCK_LOCATIONS),
+        patch("app.agents.npc_agent.load_json_data", return_value=MOCK_NPCS),
+        patch("app.systems.relationship.load_json_data", return_value=MOCK_NPCS),
+        patch("app.engine.game_engine.get_db", _mock_get_db),
+        patch("app.systems.npc_presence.load_json_data", side_effect=lambda name: MOCK_PRESENCE_RULES if name == "npc_presence_rules.json" else MOCK_NPCS),
+    ):
+        yield GameEngine()
+
+
+@pytest.mark.asyncio
+async def test_get_state_returns_npc_locations(engine_with_presence):
+    start = await engine_with_presence.start_game("旅行者")
+    game_id = start.game_id
+
+    state = await engine_with_presence.get_state(game_id)
+    assert state is not None
+    assert len(state.npc_locations) == 3
+
+    by_id = {loc.npc_id: loc for loc in state.npc_locations}
+    assert by_id["innkeeper"].location == "tavern"
+    assert by_id["mayor"].location == "town_hall"
+    assert by_id["miner"].location == "abandoned_mine"
+
+
+@pytest.mark.asyncio
+async def test_start_game_presence_default(engine_with_presence):
+    response = await engine_with_presence.start_game("旅行者")
+    assert len(response.available_npcs) == 1
+    assert response.available_npcs[0].id == "innkeeper"
+
+
+@pytest.mark.asyncio
+async def test_talk_npc_not_at_location_presence(engine_with_presence):
+    start = await engine_with_presence.start_game("旅行者")
+    game_id = start.game_id
+
+    response = await engine_with_presence.process_input(game_id, "和镇长交谈")
+    assert "不在这里" in response.npc_response
+    assert response.npc_id is None

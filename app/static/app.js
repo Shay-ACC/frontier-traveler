@@ -7,6 +7,12 @@ const NPC_NAME_MAP = {
     miner: "托马斯"
 };
 
+const LOC_NAME_MAP = {
+    tavern: "破晓酒馆",
+    town_hall: "镇政厅",
+    abandoned_mine: "废弃矿坑"
+};
+
 document.addEventListener("DOMContentLoaded", function () {
     window.dialogLog = document.getElementById("dialog-log");
     window.errorDisplay = document.getElementById("error-display");
@@ -23,6 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.memoriesEl = document.getElementById("memories");
     window.flagsEl = document.getElementById("flags");
     window.townEventsEl = document.getElementById("town-events");
+    window.npcLocationsEl = document.getElementById("npc-locations");
 
     btnStart.onclick = startGame;
     btnSend.onclick = sendMessage;
@@ -275,6 +282,24 @@ function refreshState() {
                 });
             } else {
                 townEventsEl.innerHTML = '<p class="empty-hint">暂无事件</p>';
+            }
+
+            if (data.npc_locations && data.npc_locations.length > 0) {
+                npcLocationsEl.innerHTML = "";
+                data.npc_locations.forEach(function(npc) {
+                    var item = document.createElement("div");
+                    item.className = "npc-location-item";
+                    var locName = LOC_NAME_MAP[npc.location] || npc.location;
+                    if (npc.visible) {
+                        item.textContent = npc.name + " - " + locName;
+                    } else {
+                        item.className += " npc-location-hidden";
+                        item.textContent = npc.name + " - 行踪不明";
+                    }
+                    npcLocationsEl.appendChild(item);
+                });
+            } else {
+                npcLocationsEl.innerHTML = '<p class="empty-hint">暂无数据</p>';
             }
 
             if (data.world_state && data.world_state.flags) {

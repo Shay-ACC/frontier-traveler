@@ -21,6 +21,7 @@ from app.models.relationship import Relationship
 from app.systems.memory import MemoryManager
 from app.systems.quest import QuestManager
 from app.systems.relationship import RelationshipManager
+from app.systems.npc_presence import NpcPresenceSystem
 from app.systems.town_tick import TownTickSystem
 from app.systems.world_state import WorldState
 
@@ -36,6 +37,7 @@ class GameEngine:
         self.memory_manager = MemoryManager()
         self.npc_agent = NPCAgent(create_provider())
         self.town_tick_system = TownTickSystem()
+        self.npc_presence_system = NpcPresenceSystem()
         self._sessions: dict[str, dict] = {}
 
     async def start_game(self, player_name: str = "旅行者") -> StartGameResponse:
@@ -51,7 +53,7 @@ class GameEngine:
             await self.quest_manager.init_quest_states(db, game_id)
 
             location = self.world_state.get_location(ws.current_location)
-            npc_ids = self.world_state.get_available_npcs(ws.current_location)
+            npc_ids = self.npc_presence_system.get_npcs_at_location(ws, ws.current_location)
             npcs = []
             for npc_id in npc_ids:
                 npc = self.npc_agent.get_npc(npc_id)
@@ -267,18 +269,19 @@ class GameEngine:
     ) -> dict | None:
         npc_id = intent.get("npc_id")
         if not npc_id:
-            npcs = self.world_state.get_available_npcs(ws.current_location)
+            npcs = self.npc_presence_system.get_npcs_at_location(ws, ws.current_location)
             if npcs:
                 npc_id = npcs[0]
 
         if not npc_id:
             return None
 
-        available_npcs = self.world_state.get_available_npcs(ws.current_location)
+        available_npcs = self.npc_presence_system.get_npcs_at_location(ws, ws.current_location)
         if npc_id not in available_npcs:
             npc = self.npc_agent.get_npc(npc_id)
             npc_name = npc.name if npc else npc_id
-            return {"error": f"{npc_name}不在这里。"}
+            reason = self.npc_presence_system.get_absence_reason(ws, npc_id, ws.current_location)
+            return {"error": reason or f"{npc_name}不在这里。"}
 
         location = self.world_state.get_location(ws.current_location)
         relationship = await self.relationship_manager.get(db, ws.game_id, npc_id)
@@ -444,7 +447,7 @@ class GameEngine:
     def _get_available_actions(self, ws: WorldStateModel) -> list[str]:
         actions = []
 
-        npcs = self.world_state.get_available_npcs(ws.current_location)
+        npcs = self.npc_presence_system.get_npcs_at_location(ws, ws.current_location)
         for npc_id in npcs:
             npc = self.npc_agent.get_npc(npc_id)
             if npc:
@@ -482,4 +485,5 @@ class GameEngine:
                 quest_states=quest_states,
                 recent_memories=recent_memories,
                 triggered_town_events=triggered_town_events,
+                npc_locations=self.npc_presence_system.get_all_npc_locations(ws),
             )

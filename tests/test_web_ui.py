@@ -126,3 +126,20 @@ async def test_index_contains_town_events_section(client):
     response = await client.get("/")
     assert response.status_code == 200
     assert "town-events" in response.text
+
+
+@pytest.mark.asyncio
+async def test_js_handles_npc_locations(client):
+    response = await client.get("/static/app.js")
+    assert response.status_code == 200
+    js = response.text
+    assert "npc_locations" in js
+    assert "npc-location-item" in js
+    assert "LOC_NAME_MAP" in js
+
+
+@pytest.mark.asyncio
+async def test_index_contains_npc_locations_section(client):
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "npc-locations" in response.text

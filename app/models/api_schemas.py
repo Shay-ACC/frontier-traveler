@@ -35,6 +35,13 @@ class TownEvent(BaseModel):
     importance: int
 
 
+class NpcLocationInfo(BaseModel):
+    npc_id: str
+    name: str
+    location: str
+    visible: bool
+
+
 class StateChanges(BaseModel):
     quest_updates: list[QuestUpdate] = []
     relationship_changes: list[RelationshipChange] = []
@@ -75,3 +82,4 @@ class GameStateResponse(BaseModel):
     quest_states: list[QuestState]
     recent_memories: list[Memory]
     triggered_town_events: list[TownEvent] = []
+    npc_locations: list[NpcLocationInfo] = []
