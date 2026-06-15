@@ -1,0 +1,21 @@
+[
+  {
+    "npc_id": "miner",
+    "rules": [
+      {
+        "location": "tavern",
+        "visible": true,
+        "when_flags": {"miner_gone": true},
+        "unless_flags": {},
+        "reason": "托马斯逃到酒馆寻求庇护"
+      },
+      {
+        "location": "abandoned_mine",
+        "visible": false,
+        "when_flags": {"miner_gone": true},
+        "unless_flags": {},
+        "reason": "托马斯已经不在矿坑了，地上散落着他的矿灯"
+      }
+    ]
+  }
+]

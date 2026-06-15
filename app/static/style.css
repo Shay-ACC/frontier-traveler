@@ -402,6 +402,22 @@ header h1 {
     font-weight: 500;
 }
 
+.npc-location-item {
+    padding: 5px 8px;
+    margin-bottom: 3px;
+    border-left: 3px solid #2ecc71;
+    background: #f0faf5;
+    font-size: 12px;
+    color: #333;
+}
+
+.npc-location-hidden {
+    border-left-color: #bdc3c7;
+    background: #f5f5f5;
+    color: #999;
+    font-style: italic;
+}
+
 @media (max-width: 900px) {
     .container {
         grid-template-columns: 1fr;
